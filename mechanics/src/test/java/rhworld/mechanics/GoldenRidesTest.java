@@ -45,7 +45,7 @@ class GoldenRidesTest {
         StringBuilder s = new StringBuilder();
         for (Ride r : log.rides()) {
             long[] e = Dice.forOpening(r.opening(), r.index(), primes.length);
-            BigInteger y = ((Verdict.Ok<BigInteger>) Arith.subsetProduct(e, primes, log.modulus())).value();
+            BigInteger y = ((Verdict.Ok<BigInteger>) Arith.subsetProduct(e, gate.table(), log.modulus())).value();
             boolean fired = Colour.ofJacobi(Arith.jacobi(r.before().multiply(y), log.modulus())) != r.colour();
             s.append(fired ? ((e[w >>> 6] >>> (w & 63) & 1) == 1 ? '1' : '0') : '-');
         }
