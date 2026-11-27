@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# usage: worldtest.sh <scenario> <level-type> [seed] [limit-seconds]
-# RHWORLD_KEY=<gm key json> installs an operator key and scans logs and saves for its factors
+# usage: worldtest.sh <scenario> <level-type> [seed] [limit], env RHWORLD_KEY ORDER THREADS
 set -uo pipefail
 scenario=${1:?scenario}
 level_type=${2:?level type}
@@ -36,7 +35,8 @@ EOF
 
 start=$(date +%s)
 setsid timeout "$limit" "$here/gradlew" -p "$here" :fabric:runWorldTest --no-daemon -q \
-    "-Prhworld.worldtest=$scenario" >"$log" 2>&1 </dev/null &
+    "-Prhworld.worldtest=$scenario" "-Prhworld.order=${RHWORLD_ORDER:-0}" \
+    ${RHWORLD_THREADS:+"-Prhworld.threads=$RHWORLD_THREADS"} >"$log" 2>&1 </dev/null &
 pid=$!
 pgid=$(ps -o pgid= -p "$pid" | tr -d ' ')
 cleanup() {

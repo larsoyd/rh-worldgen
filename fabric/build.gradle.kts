@@ -2,6 +2,10 @@ plugins {
     id("net.fabricmc.fabric-loom") version "1.19.4"
 }
 
+base {
+    archivesName = "rhworld"
+}
+
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(providers.gradleProperty("rhworld.java").get().toInt())
 }
@@ -45,6 +49,8 @@ loom {
             source(sourceSets.getByName("gametest"))
             runDir("build/worldtest")
             vmArg("-Drhworld.worldtest=" + (findProperty("rhworld.worldtest") ?: "none"))
+            vmArg("-Drhworld.order=" + (findProperty("rhworld.order") ?: "0"))
+            findProperty("rhworld.threads")?.let { vmArg("-Dmax.bg.threads=$it") }
             ideConfigGenerated(false)
         }
     }
