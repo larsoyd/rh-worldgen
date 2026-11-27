@@ -1,0 +1,20 @@
+{
+  "dimensions": {
+    "minecraft:overworld": {
+      "type": "minecraft:overworld",
+      "generator": {
+        "type": "rhworld:hybrid",
+        "realm": "hearth",
+        "modulus": "134826985114673693079697889309176855021348273420672992955072560868299506854125722349531357991805652015840085409903545018244092339059359173512614448516829184356809373105987810684537364687906559661548246452788193525749759853068230025699094666807987975057966109248765647340584936795750848412171927451746739159043",
+        "delegate": {
+          "type": "minecraft:noise",
+          "biome_source": {
+            "type": "minecraft:multi_noise",
+            "preset": "minecraft:overworld"
+          },
+          "settings": "minecraft:overworld"
+        }
+      }
+    }
+  }
+}
