@@ -26,13 +26,20 @@ public final class Concord {
     }
 
     public String toJson() {
+        return Json.write(toMap());
+    }
+
+    Map<String, Object> toMap() {
         List<String> names = new ArrayList<>();
         for (Realm r : sigils) names.add(r.name().toLowerCase(Locale.ROOT));
-        return Json.write(Map.of("format", FORMAT, "sigils", names));
+        return Map.of("format", FORMAT, "sigils", names);
     }
 
     public static Concord fromJson(String text) {
-        Map<?, ?> root = (Map<?, ?>) Json.parse(text);
+        return fromMap((Map<?, ?>) Json.parse(text));
+    }
+
+    static Concord fromMap(Map<?, ?> root) {
         if (!FORMAT.equals(root.get("format"))) throw new IllegalArgumentException("refused: unknown concord format=" + root.get("format"));
         Concord c = new Concord();
         for (Object name : (List<?>) root.get("sigils")) c.grant(Realm.valueOf(((String) name).toUpperCase(Locale.ROOT)));

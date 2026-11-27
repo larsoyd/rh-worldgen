@@ -15,17 +15,23 @@ class AuditTest {
     private static final WildGate GATE = WildGate.forModulus(RIGGED.modulus());
 
     private static RideLog session(int count, int tag, UnaryOperator<Realm> report, boolean warmOnly) {
-        byte[] seed = new byte[Dice.SEED_BYTES];
-        seed[1] = (byte) tag;
-        RideLog log = new RideLog(RIGGED.modulus());
+        SeedChain chain = chain(tag, count);
+        RideLog log = new RideLog(RIGGED.modulus(), chain.commitment());
         BigInteger x = BigInteger.ONE;
         for (int r = 0; r < count; r++) {
             Colour colour = warmOnly || r % 2 == 0 ? Colour.WARM : Colour.COLD;
-            BigInteger after = GATE.ride(x, colour, Dice.bits(seed, r, GATE.size()));
-            log.add(new Ride(r, colour, x, after, report.apply(RIGGED.realm(after))));
+            String opening = chain.opening(r);
+            BigInteger after = GATE.ride(x, colour, Dice.forOpening(opening, r, GATE.size()));
+            log.add(new Ride(r, colour, opening, x, after, report.apply(RIGGED.realm(after))));
             x = after;
         }
         return log;
+    }
+
+    private static SeedChain chain(int tag, int rides) {
+        byte[] top = new byte[Dice.SEED_BYTES];
+        top[1] = (byte) tag;
+        return new SeedChain(top, rides);
     }
 
     private static Realm hideEmber(Realm r) {
@@ -91,18 +97,22 @@ class AuditTest {
         String json = log.toJson();
         assertEquals(json, RideLog.fromJson(json).toJson());
         assertEquals(log.rides(), RideLog.fromJson(json).rides());
-        assertTrue(json.startsWith("{\"format\":\"rhworld.rides/1\",\"n\":\"" + RIGGED.modulus() + "\",\"rides\":[{\"after\":\""), json);
+        assertTrue(json.startsWith("{\"commitment\":\"" + chain(6, 5).commitment() + "\",\"format\":\"rhworld.rides/1\",\"n\":\"" + RIGGED.modulus() + "\",\"rides\":[{\"after\":\""), json);
     }
 
     @Test
     void logRefusesAGapInTheIndex() {
-        RideLog log = new RideLog(BigInteger.valueOf(15));
-        log.add(new Ride(0, Colour.WARM, BigInteger.ONE, BigInteger.TWO, Realm.HEARTH));
+        SeedChain c = chain(9, 3);
+        RideLog log = new RideLog(BigInteger.valueOf(15), c.commitment());
+        log.add(new Ride(0, Colour.WARM, c.opening(0), BigInteger.ONE, BigInteger.TWO, Realm.HEARTH));
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
-                () -> log.add(new Ride(2, Colour.WARM, BigInteger.TWO, BigInteger.TWO, Realm.HEARTH)));
+                () -> log.add(new Ride(2, Colour.WARM, c.opening(2), BigInteger.TWO, BigInteger.TWO, Realm.HEARTH)));
         assertEquals("refused: ride index out of order index=2 expected=1", e.getMessage());
         e = assertThrows(IllegalArgumentException.class,
-                () -> log.add(new Ride(1, Colour.WARM, BigInteger.ONE, BigInteger.TWO, Realm.HEARTH)));
+                () -> log.add(new Ride(1, Colour.WARM, c.opening(1), BigInteger.ONE, BigInteger.TWO, Realm.HEARTH)));
         assertEquals("refused: ride does not start where the last ended index=1", e.getMessage());
+        e = assertThrows(IllegalArgumentException.class,
+                () -> log.add(new Ride(1, Colour.WARM, c.opening(2), BigInteger.TWO, BigInteger.TWO, Realm.HEARTH)));
+        assertEquals("refused: opening does not follow the chain index=1", e.getMessage());
     }
 }

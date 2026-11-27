@@ -22,11 +22,11 @@ public final class Warden {
     }
 
     // class bits only, never a root or a factor
-    public Realm realm(BigInteger x) {
+    Realm realm(BigInteger x) {
         return Realm.of(Arith.jacobi(x, p), Arith.jacobi(x, q));
     }
 
-    public int rank(int[] primes) {
+    int rank(int[] primes) {
         boolean[] span = new boolean[4];
         span[0] = true;
         for (int l : primes) {
