@@ -118,6 +118,11 @@ class Decode(unittest.TestCase):
         self.assertEqual(mca.shrine_mismatches(swapped, pieces), [(1, [2])])
         self.assertEqual(mca.shrine_mismatches(good[:2], pieces), [(2, [])])
 
+    def test_shrine_without_index_is_reported_not_crashed(self):
+        pieces = [{"id": "rhworld:shrine", "BB": [0, 0, 0, 2, 7, 2], "prime_index": 0}]
+        self.assertEqual(mca.shrine_mismatches([(1, 3, 1, "rhworld:shrine")], pieces), [(0, [None])])
+        self.assertEqual(mca.layout_errors([(1, 3, 1, "rhworld:shrine")])[-1], "shrine None at (1, 1) expected None")
+
     def test_ring_positions_use_java_rounding(self):
         self.assertEqual(mca.ring_position(0), (48, 0))
         self.assertEqual(mca.java_round(-2.5), -2)
