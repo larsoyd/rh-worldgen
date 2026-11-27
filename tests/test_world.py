@@ -1,0 +1,156 @@
+import json
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+import numpy as np
+from PIL import Image
+
+from rhworld.arith import jacobi
+from rhworld.fog import side
+from rhworld.gm import make_gm
+from rhworld.__main__ import G1_MARK, G2_MARK
+from rhworld.world import CLASSES, MARK_RADIUS, PLAYER, class_map, layer, render_gm, render_player, tile
+
+
+def run(*args):
+    return subprocess.run([sys.executable, "-m", "rhworld", *map(str, args)],
+                          capture_output=True, text=True, timeout=240)
+
+
+class Layers(unittest.TestCase):
+    def test_tile_numbering_is_row_major_from_one(self):
+        self.assertEqual(tile(0, 0, 10), 1)
+        self.assertEqual(tile(0, 9, 10), 10)
+        self.assertEqual(tile(3, 4, 10), 35)
+
+    def test_layer_is_the_symbol_at_each_tile(self):
+        p, q = make_gm(512, 1)
+        n, s = p * q, 37
+        v, h = layer(n, s), layer(p, s)
+        for r in range(s):
+            for c in range(s):
+                x = tile(r, c, s)
+                self.assertEqual(v[r, c], jacobi(x, n))
+                self.assertEqual(h[r, c], jacobi(x, p))
+                self.assertEqual(v[r, c] * h[r, c], jacobi(x, q))
+
+    def test_class_map_covers_four_classes(self):
+        v = np.array([[1, 1], [-1, -1]], dtype=np.int8)
+        h = np.array([[1, -1], [1, -1]], dtype=np.int8)
+        self.assertEqual(class_map(v, h).tolist(), [[0, 1], [2, 3]])
+        self.assertEqual(len({c.rgb for c in CLASSES}), 4)
+        self.assertEqual(len({c.rgb for c in PLAYER}), 2)
+
+
+class Render(unittest.TestCase):
+    def test_gm_view_colours_follow_classes(self):
+        v = np.array([[1, 1], [-1, -1]], dtype=np.int8)
+        h = np.array([[1, -1], [1, -1]], dtype=np.int8)
+        px = np.asarray(render_gm(v, h, marks=[]))
+        self.assertEqual([tuple(px[r, c]) for r in (0, 1) for c in (0, 1)], [c.rgb for c in CLASSES])
+
+    def test_player_view_ignores_hidden_layer(self):
+        v = np.array([[1, -1], [-1, 1]], dtype=np.int8)
+        px = np.asarray(render_player(v, marks=[]))
+        self.assertEqual(tuple(px[0, 0]), PLAYER[0].rgb)
+        self.assertEqual(tuple(px[0, 1]), PLAYER[1].rgb)
+
+    def test_mark_outlines_tile_without_covering_it(self):
+        v = np.ones((21, 21), dtype=np.int8)
+        px = np.asarray(render_player(v, marks=[(tile(10, 10, 21), (255, 0, 0))]))
+        self.assertEqual(tuple(px[10, 10]), PLAYER[0].rgb)
+        self.assertEqual(tuple(px[7, 10]), (255, 0, 0))
+        self.assertEqual(tuple(px[0, 0]), PLAYER[0].rgb)
+        self.assertEqual(int((px == (255, 0, 0)).all(axis=2).sum()), 24)
+
+    def test_mark_at_map_edge_keeps_tile_visible(self):
+        v = np.ones((21, 21), dtype=np.int8)
+        px = np.asarray(render_player(v, marks=[(2, (255, 0, 0))]))
+        self.assertEqual(tuple(px[0, 1]), PLAYER[0].rgb)
+        self.assertEqual(tuple(px[3, 1]), (255, 0, 0))
+        self.assertEqual(tuple(px[0, 4]), (255, 0, 0))
+
+
+class Cli(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def make(self, name, *flags):
+        gm = self.dir / f"{name}.json"
+        r = run("gm", "--bits", 512, "--seed", 3, *flags, "--out", gm)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        return gm
+
+    def test_world_writes_maps_and_report_deterministically(self):
+        gm = self.make("gm", "--rigged")
+        outs = []
+        for k in range(2):
+            out = self.dir / f"w{k}"
+            r = run("world", "--gm", gm, "--out", out)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn("[world] wrote", r.stdout)
+            outs.append(out)
+        for name in ("player.png", "gm.png", "report.json"):
+            self.assertEqual((outs[0] / name).read_bytes(), (outs[1] / name).read_bytes(), name)
+        rep = json.loads((outs[0] / "report.json").read_text())
+        data = json.loads(gm.read_text())
+        p, q, n = int(data["p"]), int(data["q"]), int(data["n"])
+        self.assertEqual(rep["n_bits"], n.bit_length())
+        self.assertEqual(rep["side"], side(n))
+        self.assertLess(rep["g1_p"], rep["budget"])
+        self.assertEqual(jacobi(rep["g1_p"], p), -1)
+        self.assertEqual(jacobi(rep["g1_q"], q), -1)
+        self.assertEqual(jacobi(rep["g2"], n), -1)
+        self.assertGreaterEqual(rep["hash_chain_index"], 1)
+        self.assertEqual(sum(rep["tiles"].values()), side(n) ** 2)
+        self.assertNotIn(str(p), (outs[0] / "report.json").read_text())
+        s = side(n)
+        with Image.open(outs[0] / "gm.png") as im:
+            self.assertEqual(im.size, (s, s))
+            px = np.asarray(im)
+        want = class_map(layer(n, s), layer(p, s))
+        palette = np.array([c.rgb for c in CLASSES], dtype=np.uint8)
+        rows, cols = np.indices((s, s))
+        ring = np.zeros((s, s), dtype=bool)
+        for x in (rep["g1_p"], rep["g2"]):
+            r, c = divmod(x - 1, s)
+            ring |= np.maximum(abs(rows - r), abs(cols - c)) == MARK_RADIUS
+        self.assertTrue((px[~ring] == palette[want][~ring]).all())
+        self.assertTrue(np.isin(px[ring].tolist(), [G1_MARK, G2_MARK]).all())
+        counts = want.ravel().tolist()
+        self.assertEqual(rep["tiles"], {c.name: counts.count(k) for k, c in enumerate(CLASSES)})
+
+    def test_player_view_from_modulus_alone_matches(self):
+        gm = self.make("gm")
+        n = json.loads(gm.read_text())["n"]
+        r1 = run("world", "--gm", gm, "--out", self.dir / "w")
+        r2 = run("player", "--n", n, "--out", self.dir / "p")
+        self.assertEqual(r1.returncode, 0, r1.stderr)
+        self.assertEqual(r2.returncode, 0, r2.stderr)
+        self.assertEqual((self.dir / "w" / "player.png").read_bytes(), (self.dir / "p" / "player.png").read_bytes())
+        self.assertFalse((self.dir / "p" / "gm.png").exists())
+
+    def test_refusal_is_reported_and_exit_code_two(self):
+        gm = self.dir / "bad.json"
+        p = 2 ** 607 - 1
+        gm.write_text(json.dumps({"p": str(p), "q": str(p), "n": str(p * p)}))
+        r = run("world", "--gm", gm, "--out", self.dir / "w")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("refused: jacobi character is principal", r.stdout)
+        self.assertFalse((self.dir / "w" / "gm.png").exists())
+
+    def test_gm_file_must_match_modulus(self):
+        gm = self.make("gm")
+        data = json.loads(gm.read_text())
+        data["n"] = str(int(data["n"]) + 2)
+        gm.write_text(json.dumps(data))
+        r = run("world", "--gm", gm, "--out", self.dir / "w")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("refused: gm file factors do not match n", r.stdout)
