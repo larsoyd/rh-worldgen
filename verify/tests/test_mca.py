@@ -104,6 +104,20 @@ class Decode(unittest.TestCase):
         self.assertEqual(mca.palette_state({"id": "rhworld:shrine", "properties": {"prime_index": "7"}}),
                          "rhworld:shrine[prime_index=7]")
 
+    def test_blocks_outside_piece_boxes(self):
+        boxes = [[-9, 61, -9, 9, 68, 9], [47, 61, -1, 49, 68, 1]]
+        blocks = [(0, 61, 0, "rhworld:hub_stone"), (48, 68, 0, "rhworld:shrine[prime_index=0]"),
+                  (48, 69, 0, "rhworld:shrine[prime_index=1]"), (20, 61, 0, "rhworld:sigil")]
+        self.assertEqual(mca.outside(blocks, boxes), blocks[2:])
+
+    def test_shrine_pieces_hold_their_own_prime(self):
+        pieces = [{"id": "rhworld:shrine", "BB": [10 * i, 0, 0, 10 * i + 2, 7, 2], "prime_index": i} for i in range(3)]
+        good = [(10 * i + 1, 3, 1, f"rhworld:shrine[prime_index={i}]") for i in range(3)]
+        self.assertEqual(mca.shrine_mismatches(good, pieces), [])
+        swapped = [good[0], (11, 3, 1, "rhworld:shrine[prime_index=2]"), good[2]]
+        self.assertEqual(mca.shrine_mismatches(swapped, pieces), [(1, [2])])
+        self.assertEqual(mca.shrine_mismatches(good[:2], pieces), [(2, [])])
+
     def test_absent_chunk_is_skipped(self):
         self.assertEqual(list(mca.read_region(bytes(8192))), [])
 

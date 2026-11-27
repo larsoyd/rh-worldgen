@@ -117,6 +117,27 @@ def rhworld_blocks(chunk):
     return out
 
 
+def inside(block, box):
+    x, y, z, _ = block
+    return box[0] <= x <= box[3] and box[1] <= y <= box[4] and box[2] <= z <= box[5]
+
+
+def outside(blocks, boxes):
+    return [b for b in blocks if not any(inside(b, box) for box in boxes)]
+
+
+def shrine_mismatches(blocks, pieces):
+    out = []
+    for piece in pieces:
+        if piece["id"] != "rhworld:shrine":
+            continue
+        found = [int(b[3].split("prime_index=")[1].rstrip("]")) for b in blocks
+                 if b[3].startswith("rhworld:shrine") and inside(b, piece["BB"])]
+        if found != [piece["prime_index"]]:
+            out.append((piece["prime_index"], found))
+    return out
+
+
 def chunk_hash(blocks):
     lines = sorted(f"{x} {y} {z} {s}\n" for x, y, z, s in blocks)
     return hashlib.sha256("".join(lines).encode()).hexdigest()
@@ -129,18 +150,24 @@ def region_dirs(world):
 
 
 def world_hashes(world):
-    out, empty = {}, 0
+    out, empty, placement = {}, 0, {}
     for level, folder in region_dirs(Path(world)):
         if not folder.is_dir():
             raise FileNotFoundError(f"missing region folder level={level} path={folder}")
+        every, pieces = [], []
         for f in sorted(folder.glob("r.*.mca")):
             for chunk in read_region(f.read_bytes()):
                 blocks = rhworld_blocks(chunk)
+                every += blocks
+                for key, start in chunk.get("structures", {}).get("starts", {}).items():
+                    if key.startswith(NAMESPACE):
+                        pieces += start.get("Children", [])
                 if blocks:
                     out[(level, chunk["xPos"], chunk["zPos"])] = (len(blocks), chunk_hash(blocks))
                 else:
                     empty += 1
-    return out, empty
+        placement[level] = (len(outside(every, [p["BB"] for p in pieces])), shrine_mismatches(every, pieces))
+    return out, empty, placement
 
 
 def dump_hashes(log):
@@ -149,14 +176,16 @@ def dump_hashes(log):
 
 
 def main(world, log):
-    mine, empty = world_hashes(world)
+    mine, empty, placement = world_hashes(world)
+    for level, (loose, wrong) in placement.items():
+        print(f"[mca] level={level} blocks_outside_pieces={loose} shrine_mismatches={len(wrong)} first={wrong[:4]}")
     theirs = dump_hashes(log)
     missing = sorted(set(theirs) - set(mine))
     extra = sorted(set(mine) - set(theirs))
     differ = sorted(k for k in set(mine) & set(theirs) if mine[k] != theirs[k])
     for k in (missing + extra + differ)[:10]:
         print(f"[mca] mismatch level={k[0]} cx={k[1]} cz={k[2]} mine={mine.get(k)} dump={theirs.get(k)}")
-    ok = not (missing or extra or differ) and theirs
+    ok = not (missing or extra or differ) and theirs and not any(a or b for a, b in placement.values())
     print(f"[mca] verdict={'pass' if ok else 'fail'} chunks_with_blocks={len(mine)} dumped={len(theirs)} "
           f"missing={len(missing)} extra={len(extra)} differ={len(differ)} empty_chunks={empty}")
     return 0 if ok else 1
