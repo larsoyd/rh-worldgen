@@ -61,7 +61,7 @@ class CertificateTest {
         String json = Certificate.of(world(0)).json();
         @SuppressWarnings("unchecked")
         Map<String, Object> m = (Map<String, Object>) Json.parse(json);
-        assertEquals(List.of("deferred", "header", "not_proved", "recomputed", "theorem", "world_id"), m.keySet().stream().sorted().toList());
+        assertEquals(List.of("deferred", "engine_version", "header", "not_proved", "recomputed", "theorem", "world_id"), m.keySet().stream().sorted().toList());
         assertEquals(json, Json.write(Json.parse(json)));
         Certificate.Report r = ok(Certificate.verify(json, Telemetry.NONE));
         assertEquals(Certificate.of(world(0)).worldId(), r.worldId());
@@ -116,6 +116,61 @@ class CertificateTest {
             }
         }
         assertEquals(8, checked);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void hypothesisPointersResolveOrArePendingUntilReveal() {
+        Map<String, Object> m = (Map<String, Object>) Json.parse(Certificate.of(world(0)).json());
+        assertEquals(null, ((Map<String, Object>) m.get("deferred")).get("reveal"));
+        int pending = 0, resolved = 0;
+        for (Object contract : ((Map<String, Object>) m.get("theorem")).values()) {
+            for (Object h : (List<Object>) ((Map<String, Object>) contract).get("hypotheses")) {
+                String path = (String) ((Map<String, Object>) h).get("checked_by");
+                Object at = m;
+                for (String part : path.split("\\.")) at = at instanceof Map<?, ?> x ? x.get(part) : null;
+                if (at != null) resolved++;
+                else if (path.startsWith("deferred.reveal.")) pending++;
+                else throw new AssertionError("dangling checked_by " + path);
+            }
+        }
+        assertEquals(2, pending);
+        assertEquals(6, resolved);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void layerTrialDivisionIsRecordedWhereTheHypothesisPoints() {
+        Map<String, Object> m = (Map<String, Object>) Json.parse(Certificate.of(gm(3)).json());
+        Map<String, Object> c3 = (Map<String, Object>) ((Map<String, Object>) m.get("recomputed")).get("c3");
+        assertEquals(c3.get("bound"), c3.get("trial_limit"));
+        assertEquals(BigInteger.valueOf(rhworld.engine.arith.Primes.upTo(((BigInteger) c3.get("bound")).longValue()).length), c3.get("primes_tested"));
+        Map<String, Object> hidden = (Map<String, Object>) ((Map<String, Object>) ((Map<String, Object>) m.get("deferred")).get("reveal")).get("c3_hidden");
+        assertEquals(hidden.get("bound"), hidden.get("trial_limit"));
+        List<Object> hyps = (List<Object>) ((Map<String, Object>) ((Map<String, Object>) m.get("theorem")).get("RHW-C3")).get("hypotheses");
+        assertEquals("recomputed.c3.trial_limit", ((Map<String, Object>) hyps.get(1)).get("checked_by"));
+    }
+
+    @Test
+    void onlyCanonicalBytesVerifyWithOneOptionalLineFeed() {
+        String json = Certificate.of(world(0)).json();
+        ok(Certificate.verify(json, Telemetry.NONE));
+        ok(Certificate.verify(json + "\n", Telemetry.NONE));
+        assertEquals("refused: certificate not canonical", Certificate.verify(json + "\n\n", Telemetry.NONE).toString());
+        assertEquals("refused: certificate not canonical", Certificate.verify(json + "\r\n", Telemetry.NONE).toString());
+        assertEquals("refused: certificate not canonical", Certificate.verify(json.replaceFirst("\":", "\": "), Telemetry.NONE).toString());
+        assertEquals("refused: certificate not canonical", Certificate.verify(" " + json, Telemetry.NONE).toString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void engineVersionIsInformational() {
+        String json = Certificate.of(gm(3)).json();
+        Map<String, Object> m = (Map<String, Object>) Json.parse(json);
+        assertEquals(Certificate.ENGINE_VERSION, m.get("engine_version"));
+        assertTrue(!((Map<String, Object>) m.get("header")).containsKey("engine_version"));
+        ok(Certificate.verify(edit(json, "engine_version", v -> "0.2.0"), Telemetry.NONE));
+        assertEquals("refused: certificate malformed", Certificate.verify(edit(json, "engine_version", v -> BigInteger.TWO), Telemetry.NONE).toString());
     }
 
     @Test

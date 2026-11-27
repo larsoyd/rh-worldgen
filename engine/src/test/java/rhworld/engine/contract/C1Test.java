@@ -117,5 +117,10 @@ class C1Test {
         assertEquals("LFunction_ne_zero_of_half_lt_re", C1.CHAIN.get(0).ref());
         assertTrue(C1.CHAIN.get(1).ref().contains("Thm 1.1 (2)"), C1.CHAIN.get(1).ref());
         assertTrue(C1.HYPOTHESES.size() >= 3);
+        assertEquals("RHW-C1 v1 derivation, see README Contracts", C1.CHAIN.get(2).ref());
+        assertEquals("RHW-C3 v1 derivation, see README Contracts", C3.CHAIN.get(2).ref());
+        for (TheoremRef r : List.of(C1.CHAIN.get(2), C3.CHAIN.get(2), C1.CHAIN.get(1), C1.CHAIN.get(0))) {
+            assertTrue(!r.ref().contains(".md") && !r.statement().contains(".md"), r.toString());
+        }
     }
 }

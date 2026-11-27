@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeSet;
+import rhworld.engine.arith.Primes;
 import rhworld.engine.contract.C1;
 import rhworld.engine.contract.C3;
 import rhworld.engine.contract.ContractId;
@@ -78,6 +79,9 @@ public final class Certificate {
             m = asMap(Json.parse(text));
             Map<String, Object> header = asMap(m.get("header"));
             if (!SCHEMA.equals(header.get("schema"))) return refuse(t, "unsupported schema");
+            if (!(m.get("engine_version") instanceof String)) return refuse(t, "certificate malformed");
+            String body = text.endsWith("\n") ? text.substring(0, text.length() - 1) : text;
+            if (!body.equals(Json.write(m))) return refuse(t, "certificate not canonical");
             n = new BigInteger((String) asMap(header.get("params")).get("n"));
             Object r = asMap(m.get("deferred")).get("reveal");
             reveal = r == null ? Optional.empty() : Optional.of(asMap(r));
@@ -95,7 +99,9 @@ public final class Certificate {
         } else {
             want = of(world);
         }
-        Optional<String> diff = firstDifference("", want.root, m);
+        Map<String, Object> got = new LinkedHashMap<>(m);
+        got.put("engine_version", want.root.get("engine_version"));
+        Optional<String> diff = firstDifference("", want.root, got);
         if (diff.isPresent()) return refuse(t, "field mismatch " + diff.get());
         String status = reveal.map(r -> (String) r.get("factors_status")).orElse("unrevealed");
         t.event("cert.verify", "world_id", want.worldId, "revealed", reveal.isPresent(), "factors_status", status);
@@ -121,13 +127,13 @@ public final class Certificate {
 
     private static Map<String, Object> build(PublicWorld w, GmWorld g) {
         C1.Admission a = w.admission();
-        Map<String, Object> header = map("schema", SCHEMA, "engine_version", ENGINE_VERSION,
+        Map<String, Object> header = map("schema", SCHEMA,
                 "contracts", List.of(contract(C1.ID), contract(C3.ID)), "params", map("n", w.n().toString(), "bits", w.bits()));
         Map<String, Object> c1 = map("bits", a.bits(), "min_bits", C1.MIN_BITS, "square", false, "probable_prime", false,
                 "trial_limit", a.trialLimit(), "primes_tested", a.primesTested(), "budget", a.budget(), "side", a.side(),
                 "g2", witness(w.g2()));
         Map<String, Object> c3 = map("layers", List.of("n"), "lcm_bits", w.bits(), "independent", true, "bound", w.basis().bound(),
-                "basis", basis(w.basis()));
+                "trial_limit", w.basis().bound(), "primes_tested", Primes.upTo(w.basis().bound()).length, "basis", basis(w.basis()));
         Map<String, Object> recomputed = map("budget_exact", true, "primality_test", PRIMALITY_TEST, "c1", c1, "c3", c3);
         Map<String, Object> theorem = map(C1.ID.name(), theorem(C1.CHAIN, C1.HYPOTHESES,
                         "a least x <= B with (x/n) = -1 exists, and for each prime factor f of n a least x <= B with (x/f) = -1 exists"),
@@ -135,13 +141,15 @@ public final class Certificate {
                         "the primes <= B span the image of phi in F2^r, so every state is reached in at most r prime steps with labels <= B"));
         Map<String, Object> deferred = new LinkedHashMap<>();
         deferred.put("reveal", g == null ? null : reveal(g));
-        return map("header", header, "recomputed", recomputed, "theorem", theorem, "deferred", deferred, "not_proved", NOT_PROVED);
+        return map("header", header, "recomputed", recomputed, "theorem", theorem, "deferred", deferred, "not_proved", NOT_PROVED,
+                "engine_version", ENGINE_VERSION);
     }
 
     private static Map<String, Object> reveal(GmWorld g) {
         Map<String, Object> r = map("p", g.p().toString(), "q", g.q().toString(), "factors_status", g.factorsStatus(),
                 "primality_test", PRIMALITY_TEST, "g1", map("p", witness(g.g1p()), "q", witness(g.g1q())),
-                "c3_hidden", map("layers", List.of("p", "q"), "bound", g.hiddenBasis().bound(), "basis", basis(g.hiddenBasis())));
+                "c3_hidden", map("layers", List.of("p", "q"), "bound", g.hiddenBasis().bound(), "trial_limit", g.hiddenBasis().bound(),
+                        "primes_tested", Primes.upTo(g.hiddenBasis().bound()).length, "basis", basis(g.hiddenBasis())));
         g.proofs().ifPresent(pr -> r.put("proofs", map("p", safeIntegers(pr.p()), "q", safeIntegers(pr.q()))));
         return r;
     }

@@ -19,7 +19,7 @@ public final class C1 {
             new TheoremRef(Label.PUB, "Lamzouri, Li, Soundararajan, Math. Comp. 84 (2015), arXiv 1309.3595v3, Thm 1.1 (2)",
                     "Assume GRH. Let q >= 3000 and H a proper subgroup of (Z/qZ)*. If q is not divisible by any prime below (log q)^2,"
                             + " then some prime l <= (log q)^2 does not lie in H."),
-            new TheoremRef(Label.NEW, "RHW-C1 v1",
+            new TheoremRef(Label.NEW, "RHW-C1 v1 derivation, see README Contracts",
                     "with q = n and H the kernel of (./n), (./p) or (./q), the least x with symbol -1 is an integer <= floor((ln n)^2) <= B(k)"));
     public static final List<Hypothesis> HYPOTHESES = List.of(
             new Hypothesis("q = n >= 3000", "recomputed.c1.bits"),

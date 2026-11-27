@@ -15,12 +15,12 @@ public final class C3 {
     public static final List<TheoremRef> CHAIN = List.of(
             C1.CHAIN.get(0),
             C1.CHAIN.get(1),
-            new TheoremRef(Label.NEW, "RHW-C3 v1, L-SPAN",
+            new TheoremRef(Label.NEW, "RHW-C3 v1 derivation, see README Contracts",
                     "if the span V of the kept images is proper, phi^-1(V) is a proper subgroup of (Z/M)*, so a prime l <= (ln M)^2 <= B"
                             + " lies outside it. The primes <= B span F2^r and every state is reached in at most r hops"));
     public static final List<Hypothesis> HYPOTHESES = List.of(
             new Hypothesis("M = lcm of the layers >= 3000", "recomputed.c3.lcm_bits"),
-            new Hypothesis("no prime factor of any layer at most B = floor((ln 2 bitlen M)^2)", "recomputed.c3.bound"),
+            new Hypothesis("no prime factor of any layer at most B = floor((ln 2 bitlen M)^2)", "recomputed.c3.trial_limit"),
             new Hypothesis("phi onto F2^r: no nonempty product of layers is a perfect square", "recomputed.c3.independent"),
             new Hypothesis("hidden layers are the distinct prime factors of n", "deferred.reveal.factors_status"));
 
