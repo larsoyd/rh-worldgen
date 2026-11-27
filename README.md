@@ -306,9 +306,10 @@ Derivation (ours):
   window starting elsewhere.
 - Nothing here is machine-checked beyond the Lean theorem. The step to explicit bounds is the published Theorem 1.1, and
   the wiring is ours.
-- The guarantees are worst-case bounds. Observed values are tiny: the least G2 witness was at most 41 over 5000 random
-  2048-bit n, and basis primes reached at most 19 over 72 random keys at 1024 and 2048 bits. The rigged 1024-bit sample
-  key in samples/rigged-1024 has basis primes 349 and 359 (72 primes scanned), against a budget of 503791.
+- The guarantees are worst-case bounds. Observed values are tiny: the least G2 witness was at most 11 at 1024 bits and
+  7 at 2048 bits over 20 random keys each, at most 23 over 400 random 2048-bit products of two primes, and at most 41
+  over 5000 random odd 2048-bit numbers (not keys). Basis primes reached at most 19 over 72 random keys at 1024 and
+  2048 bits. The rigged 1024-bit sample key in samples/rigged-1024 has basis primes 349 and 359 (72 primes scanned), against a budget of 503791.
 - Claims about p and q = n/p hold only after a reveal shows that p and n/p are distinct primes. The certificate states
   which test was used: a Pocklington certificate gives "proved", and a probabilistic test gives "probable". Without such
   a reveal, a key like p^3 or p r^2 passes every client check, and its visible layer equals the hidden one.
