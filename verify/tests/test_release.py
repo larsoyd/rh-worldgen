@@ -12,7 +12,7 @@ class Readme(unittest.TestCase):
         self.assertEqual(readme_contracts("# x\n\n## Usage\n"), "refused: README has no Contracts section")
 
     def test_missing_subsection(self):
-        text = "## Contracts\n\n### RHW-C1 v1\nbody\n\n## Other\n\n### RHW-C3 v1\n"
+        text = "## Contracts\n\n### RHW-C1 v1\nbody\n\n## Other\n\n### RHW-C3 v1\nbody\n"
         self.assertEqual(readme_contracts(text), "refused: Contracts section lacks RHW-C3 v1")
 
     def test_empty_subsection(self):
