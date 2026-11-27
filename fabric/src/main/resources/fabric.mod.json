@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "rhworld",
+  "version": "${version}",
+  "name": "RHWorld",
+  "environment": "*",
+  "entrypoints": {"main": ["rhworld.fabric.RhWorldMod"]},
+  "mixins": ["rhworld.mixins.json"],
+  "depends": {"fabricloader": ">=0.20.1", "minecraft": "26.3", "fabric-api": "*", "java": ">=25"}
+}

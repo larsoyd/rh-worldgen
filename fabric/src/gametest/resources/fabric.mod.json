@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "rhworld-test",
+  "version": "0",
+  "environment": "*",
+  "entrypoints": {"fabric-gametest": ["rhworld.fabric.GeneratorCodecTest"]},
+  "depends": {"rhworld": "*"}
+}
