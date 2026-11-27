@@ -2,7 +2,12 @@ package rhworld.mechanics;
 
 import java.math.BigInteger;
 import java.util.Map;
+import java.util.Optional;
+import rhworld.engine.contract.Verdict;
 import rhworld.engine.json.Json;
+import rhworld.engine.telemetry.Telemetry;
+import rhworld.engine.world.GmWorld;
+import rhworld.engine.world.PublicWorld;
 
 // the only place the hidden half is read, and only at the attunement a ride produced
 public final class Season {
@@ -42,6 +47,15 @@ public final class Season {
     public Season(Warden warden) {
         this.warden = warden;
         this.gate = WildGate.forModulus(warden.modulus());
+    }
+
+    public Season(GmWorld world) {
+        this.warden = new Warden(world.p(), world.q());
+        this.gate = WildGate.of(world.world());
+    }
+
+    public static Verdict<Season> reveal(BigInteger n, BigInteger p, BigInteger q, Telemetry t) {
+        return PublicWorld.open(n, t).then(w -> GmWorld.reveal(w, p, q, Optional.empty(), t)).map(Season::new);
     }
 
     public BigInteger modulus() {
