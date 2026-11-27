@@ -1,5 +1,11 @@
 plugins {
     `java-library`
+    application
+}
+
+application {
+    mainClass = "rhworld.engine.cli.Main"
+    applicationName = "rhworld"
 }
 
 java {
