@@ -44,6 +44,10 @@ public final class RideLog {
     }
 
     public String toJson() {
+        return Json.write(toMap());
+    }
+
+    Map<String, Object> toMap() {
         List<Object> out = new ArrayList<>();
         for (Ride r : rides) {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -55,11 +59,14 @@ public final class RideLog {
             m.put("reported", name(r.reported()));
             out.add(m);
         }
-        return Json.write(Map.of("format", FORMAT, "n", n.toString(), "commitment", commitment, "rides", out));
+        return Map.of("format", FORMAT, "n", n.toString(), "commitment", commitment, "rides", out);
     }
 
     public static RideLog fromJson(String text) {
-        Map<?, ?> root = (Map<?, ?>) Json.parse(text);
+        return fromMap((Map<?, ?>) Json.parse(text));
+    }
+
+    static RideLog fromMap(Map<?, ?> root) {
         if (!FORMAT.equals(root.get("format"))) throw new IllegalArgumentException("refused: unknown ride log format=" + root.get("format"));
         RideLog log = new RideLog(new BigInteger((String) root.get("n")), (String) root.get("commitment"));
         for (Object o : (List<?>) root.get("rides")) {
