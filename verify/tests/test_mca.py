@@ -133,7 +133,7 @@ class Decode(unittest.TestCase):
         oy = 70
         good = ([(-6, oy + dy, dz, "rhworld:gate_warm") for dy in (1, 2, 3) for dz in (-1, 0, 1)]
                 + [(6, oy + dy, dz, "rhworld:gate_cold") for dy in (1, 2, 3) for dz in (-1, 0, 1)]
-                + [(0, oy, 6, "rhworld:sigil"), (0, oy - 1, 0, "rhworld:hub_stone")]
+                + [(0, oy, 6, "rhworld:sigil")] + [(0, y, 0, "rhworld:hub_stone") for y in range(oy - 24, oy)]
                 + [(*mca.ring_position(i)[:1], 65, mca.ring_position(i)[1], f"rhworld:shrine[prime_index={i}]")
                    for i in range(25)])
         good = [(x, y, z, st) for x, y, z, st in good]
@@ -144,6 +144,17 @@ class Decode(unittest.TestCase):
         self.assertEqual(mca.layout_errors(swapped)[:1], ["gate_warm at x != -6"])
         shifted = [(x + 1, y, z, st) if st.endswith("prime_index=3]") else (x, y, z, st) for x, y, z, st in good]
         self.assertEqual(mca.layout_errors(shifted), ["shrine 3 at (36, 33) expected (35, 33)"])
+
+    def test_pad_top_comes_from_the_centre_column(self):
+        oy = 70
+        blocks = [(0, y, 0, "rhworld:hub_stone") for y in range(oy - 24, oy)] + [(0, oy, 6, "rhworld:sigil")]
+        self.assertEqual(mca.pad_top(blocks), oy)
+        self.assertEqual(mca.pad_top(blocks[1:5]), oy - 19)
+
+    def test_foreign_structures_near_hub(self):
+        starts = {(0, 0): {"rhworld:hub": {}}, (1, 0): {"minecraft:ruined_portal": {}}, (17, 0): {"minecraft:village": {}},
+                  (-16, 3): {"minecraft:mineshaft": {"id": "INVALID"}}}
+        self.assertEqual(mca.foreign_starts(starts, 16), [(1, 0, "minecraft:ruined_portal")])
 
     def test_absent_chunk_is_skipped(self):
         self.assertEqual(list(mca.read_region(bytes(8192))), [])
