@@ -42,8 +42,8 @@ If a scan ever ran past it, the generator would return `refused: budget exceeded
    quadratic non-residue and related problems*, Math. Comp. 84 (2015), Theorem 1.1, part (2). Assume GRH, let
    `m >= 3000`, and let `H` be a proper subgroup of the units mod `m`. If `m` has no prime factor below `(log m)^2`,
    then some prime `l <= (log m)^2` is not in `H`. (The paper calls the modulus `q`. It is renamed here because `q` is
-   a factor of `n`.) A 2017 corrigendum to the paper was not consulted here. The paper
-   says its fix touches only Theorems 1.2 and 1.3. Bach (1990) proved the first explicit bound of this kind. Its
+   a factor of `n`.) A 2017 corrigendum to the paper was not consulted here. The arXiv
+   version (v3) says its correction touches only Theorems 1.2 and 1.3. Bach (1990) proved the first explicit bound of this kind. Its
    constants are quoted in this paper and are not used here.
 3. **Applied here,** with `m = n`. The client checks guarantee `n >= 3000` and that `n` has no prime factor up to
    `B >= floor((ln n)^2)`. This is the theorem's hypothesis, and it also makes every tile up to `B` coprime to `n`. The
