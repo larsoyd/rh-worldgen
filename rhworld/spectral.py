@@ -58,7 +58,7 @@ def state_floor(big_l, states, x):
     return float(spread) - prime_power_mass(x)
 
 
-def _small_primes(limit):
+def small_primes(limit):
     flags = bytearray([1]) * (limit + 1)
     flags[0:2] = b"\x00\x00"
     for i in range(2, math.isqrt(limit) + 1):
@@ -77,7 +77,7 @@ def certify(moduli, x):
             product = math.prod(subset)
             if math.isqrt(product) ** 2 == product:
                 raise Refused("dependent layers")
-    for p in _small_primes(int(x)):
+    for p in small_primes(int(x)):
         if any(m % p == 0 for m in moduli):
             raise Refused("small factor")
     big_l = log_bound(moduli)
