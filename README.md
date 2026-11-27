@@ -15,8 +15,8 @@ machine-checked Lean proof:
 A possibly hostile server operator (the **Warden**) publishes a key `n = p q` and keeps its factors. The world has a
 public layer that anyone computes from `n`, and a hidden layer that needs `p`. Under GRH, through an explicit
 published bound (Lamzouri, Li and Soundararajan 2015, Theorem 1.1), the primes up to a budget `B` that depends only on
-the bit length of `n` reach every state of both layers, for **every** key that passes the client checks. In the game
-that means:
+the bit length of `n` reach every state of both layers, for **every** key that passes the client checks and, for the
+hidden layer, the reveal check that `p` and `n/p` are distinct primes. In the game that means:
 
 - **No key can hide a realm.** A Wild Gate ride lands on the colour you asked for, and the hidden half is exactly
   uniform given that colour. So the Warden can never honestly say "my key just never leads to Ember". A realm that
@@ -30,8 +30,8 @@ What it does not buy:
 - **No change in output.** On every key anyone knows how to build, the certified gate behaves exactly like a gate
   over the first thousand primes, or a gate built from hashed numbers. GRH replaces an assumption about how the
   Warden chose the key with a theorem. It does not make the game faster or play differently.
-- **Existence only, and loose.** Real witnesses are tiny (at most 41 over 5000 random 2048-bit keys, 349 for the
-  rigged sample) against `B = 503,791` at 1024 bits. Nothing is claimed about density, fairness or any window other
+- **Existence only, and loose.** Real witnesses are tiny (at most 11 at 1024 bits and 7 at 2048 bits over 20 random
+  keys of each size, 349 for the rigged sample) against `B = 503,791` at 1024 bits. Nothing is claimed about density, fairness or any window other
   than `1..B`.
 - **Only what is checked.** Claims about the hidden factors hold only after the Warden reveals `p` and the reveal
   check passes. Hiding rests on factoring being hard, not on RH. Uniformity is exact for uniform dice, and the shipped
@@ -66,8 +66,8 @@ This builds `engine/build/install/rhworld/bin/rhworld`.
     rhworld verify world.json                                           # rebuilds every checked field from n
     rhworld bench --moduli moduli.json --repeat 5
 
-`--proofs` takes Pocklington certificates for both factors. When both check, the factors are marked `proved`,
-otherwise `mr25-probable`. Exit codes: 0 accepted or verified, 2 refused, 1 usage or input error. Diagnostics go to
+`--proofs` takes Pocklington certificates for both factors. With valid proofs for both the factors are marked
+`proved`, and invalid or partial proofs are refused. Without `--proofs` they are marked `mr25-probable`. Exit codes: 0 accepted or verified, 2 refused, 1 usage or input error. Diagnostics go to
 stderr as `[tag] key=value` lines, and the last line of a refusal is `refused: <reason>`. `--telemetry json` gives one
 JSON object per line instead. A certify run on the rigged sample prints:
 
@@ -85,8 +85,9 @@ not prove (`not_proved`). Any other bytes are refused as `refused: certificate n
 
 ## Playing The Warden's Key
 
-The server operator is the **Warden**. Before the season they publish a key, a large odd number `n`. The world
-refuses to load without a key that passes its checks. The Warden keeps the key's two prime factors secret.
+The server operator is the **Warden**. Before the season they publish a **modulus**, a large odd number `n`. The world
+refuses to load without a modulus that passes its checks. The two prime factors of `n` are the **operator key**, which
+the Warden keeps secret.
 
 **Realms.** There are four realms: the Overworld, called **Hearth**, and three realm dimensions, **Ember**, **Mist**
 and **Frost**. Terrain is ordinary Minecraft terrain. Each realm has a **hub** at block 0,0 with a Sigil pedestal and
@@ -103,8 +104,11 @@ your dice, and you arrive at the hub of your new realm.
 
 **Dice.** The dice come from a hash chain you commit to before your first ride. `/rhworld commit <hex>` publishes the
 commitment, and each ride uses the next link, which you queue with `/rhworld open <hex>`. A gate with no queued link
-refuses with `refused: no dice opening queued`. The server checks each link before the ride, so it learns your dice
-only when you ride, and you cannot steer them either. A player without a client tool can let the server hold the
+refuses with `refused: no dice opening queued`. The server checks each link before the ride. It learns a link when you
+queue it, never earlier, and the chain was fixed before play. You choose the chain's top, so you could try many tops
+offline, but without the hidden layer that cannot steer the hidden realm (this rests on quadratic residuosity
+being hard without the factors, not on RH). Once players have worked out the hidden layer
+(see the codex limit), grinding tops does steer it. A player without a client tool can let the server hold the
 chain. Those rides are marked `dice=server-held` everywhere and carry no promise about the dice.
 
 **Sigils and the Concord.** Each realm's pedestal gives that realm's Sigil, once per player. Hold all four and you earn
@@ -130,14 +134,16 @@ What the guarantee does not give a player:
 
 ### Checking your rides
 
-Export your log with `/rhworld log`, save it as `rides.json`, then run:
+Export your log with `/rhworld log` and save it, for example as `rides.json`. Build the launcher once, then replay:
 
-    ./gradlew :mechanics:run --args="replay --log rides.json"
+    timeout 900 ./gradlew :mechanics:installDist --no-daemon
+    mechanics/build/install/mechanics/bin/mechanics replay --log rides.json
 
-The replay recomputes every ride from the public key and your dice links. It checks that each link follows the last,
+The replay recomputes every ride from the public modulus and your dice links. It checks that each link follows the last,
 that every arrival is what the dice produce, and that every reported realm has the right colour. It ends with
 `[rhworld] verdict=ok rides=<k>` and exit code 0, or prints `refused: <reason>` and exits 2. The same launcher passes
-every other subcommand to the engine CLI. Replay proves the rides shown are consistent. It cannot prove the log is
+every other subcommand to the engine CLI. Run through `./gradlew :mechanics:run` instead, relative paths resolve
+from `mechanics/` and any failure shows as Gradle's exit code 1. Replay proves the rides shown are consistent. It cannot prove the log is
 complete, so keep count of your own rides.
 
 ## Running the mod
@@ -147,7 +153,7 @@ Development client:
     ./gradlew :fabric:runClient -Prhworld.key=$PWD/samples/random-1024/gm-key.json
 
 Then Create World, World Type **RHWorld: Wild Gates**. That preset carries the `random-1024` sample `n`, so it needs
-that key. **RHWorld: Wild Gates (rigged key)** uses `samples/rigged-1024/gm-key.json`. Without a key the world loads
+that key. **RHWorld: Wild Gates (rigged key)** uses `samples/rigged-1024/gm-key.json`. Without an operator key the world loads
 public: gates and sigils refuse `refused: no operator key on this server`, while `verify`, `contracts` and
 `resources` work. The sample keys are public test data, not secrets.
 
@@ -342,7 +348,9 @@ Every tile of the world is a positive integer `x`. The spawn patch is a square o
 
 The GM chooses `n` and could try to rig it. For example, a GM could choose `n` so that the hidden layer is the same
 everywhere near spawn, which would make the fog hide nothing. The generator refuses any `n` that fails its checks.
-For every `n` that passes them, GRH guarantees the following.
+For every `n` that passes them, GRH guarantees the following, where G1 needs `n = p q` with `p`, `q` distinct primes. The
+reference generator cannot check that before the reveal: `n = p^3` or `n = p r^2` passes its checks, and then the
+visible layer equals the hidden one.
 
 > **G1.** Some tile `x <= B(n)` has `(x/p) = -1`, and some tile `y <= B(n)` has `(y/q) = -1`. Tile 1 always has
 > `(1/p) = +1`, so the hidden layer is never constant on the spawn patch.
