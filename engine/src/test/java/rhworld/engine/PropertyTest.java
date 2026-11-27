@@ -128,6 +128,18 @@ class PropertyTest {
         return sb.toString();
     }
 
+    record Pair(String key, Object a, Object b, Object outer) {}
+
+    @Test
+    void jsonRefusesADuplicatedKeyAtAnyDepth() {
+        Props.forAll("json-duplicate-key", 2000, r -> new Pair(text(r), tree(r, 2), tree(r, 2), tree(r, 1)), c -> {
+            String k = Json.write(c.key());
+            String dup = "{" + k + ":" + Json.write(c.a()) + "," + k + ":" + Json.write(c.b()) + "}";
+            String text = "[" + Json.write(c.outer()) + ",{\"x\":" + dup + "}]";
+            org.junit.jupiter.api.Assertions.assertThrows(rhworld.engine.json.JsonException.class, () -> Json.parse(text), text);
+        });
+    }
+
     @Test
     void jsonWriteParseIsTheIdentityOnCanonicalText() {
         int n = Props.forAll("json-round-trip", 3000, r -> tree(r, 0), v -> {
