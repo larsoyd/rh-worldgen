@@ -1,6 +1,8 @@
 package rhworld.engine.cli;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.io.PrintStream;
 import java.math.BigInteger;
 import java.nio.file.Files;
@@ -23,7 +25,7 @@ import rhworld.engine.world.PublicWorld;
 public final class Cli {
     static final String USAGE = "usage: rhworld certify (--n <decimal> | --n-file <file> | --gm <gm.json>) [--p <decimal>] [--proofs <file>]"
             + " [--out <file>] [--telemetry lines|json] | verify <cert.json> [--telemetry lines|json]"
-            + " | bench --moduli <file.json> [--repeat <count>]";
+            + " | bench --moduli <file.json> [--repeat <count>] [--report <file.json>]";
 
     private static final class UsageError extends Exception {
         private static final long serialVersionUID = 1L;
@@ -61,7 +63,7 @@ public final class Cli {
             return switch (args[0]) {
                 case "certify" -> certify(opts, out, o);
                 case "verify" -> verify(opts, o);
-                case "bench" -> bench(opts, out);
+                case "bench" -> bench(opts, out, err);
                 default -> throw new UsageError("unknown command " + args[0]);
             };
         } catch (UsageError e) {
@@ -143,16 +145,66 @@ public final class Cli {
     }
 
     @SuppressWarnings("unchecked")
-    private static int bench(Map<String, String> opts, PrintStream out) throws UsageError, IOException {
+    private static int bench(Map<String, String> opts, PrintStream out, PrintStream err) throws UsageError, IOException {
         if (!opts.containsKey("--moduli")) throw new UsageError("bench needs --moduli");
         int repeat = decimal(opts.getOrDefault("--repeat", "3"), "--repeat").intValueExact();
         if (repeat < 1 || repeat > 1000) throw new UsageError("--repeat must be in 1..1000");
-        List<Object> items = (List<Object>) Json.parse(Files.readString(Path.of(opts.get("--moduli"))));
+        byte[] raw = Files.readAllBytes(Path.of(opts.get("--moduli")));
+        List<Object> items = (List<Object>) Json.parse(new String(raw, StandardCharsets.UTF_8));
+        List<Object> rows = new ArrayList<>();
         for (Object o : items) {
-            Map<String, Object> item = (Map<String, Object>) o;
-            out.println(Json.write(benchOne(item, repeat)));
+            Map<String, Object> row = benchOne((Map<String, Object>) o, repeat);
+            rows.add(row);
+            out.println(Json.write(row));
+        }
+        if (opts.containsKey("--report")) {
+            Path report = Path.of(opts.get("--report"));
+            Map<String, Object> m = new TreeMap<>();
+            m.put("schema", "rhworld.bench/1");
+            m.put("engine_version", Certificate.ENGINE_VERSION);
+            m.put("moduli_sha256", sha256(raw));
+            m.put("repeat", repeat);
+            m.put("timing", "min over repeats, microseconds, wall clock");
+            m.put("machine", machine());
+            m.put("rows", rows);
+            if (report.getParent() != null) Files.createDirectories(report.getParent());
+            Files.writeString(report, Json.write(m) + "\n");
+            err.println("[bench] report=" + report + " rows=" + rows.size());
         }
         return 0;
+    }
+
+    private static Map<String, Object> machine() {
+        Map<String, Object> m = new TreeMap<>();
+        m.put("os_name", System.getProperty("os.name"));
+        m.put("os_arch", System.getProperty("os.arch"));
+        m.put("os_version", System.getProperty("os.version"));
+        m.put("java_version", System.getProperty("java.version"));
+        m.put("java_vendor", System.getProperty("java.vendor"));
+        m.put("vm_name", System.getProperty("java.vm.name"));
+        m.put("processors", Runtime.getRuntime().availableProcessors());
+        m.put("max_heap_mb", Runtime.getRuntime().maxMemory() >> 20);
+        m.put("cpu_model", cpuModel());
+        return m;
+    }
+
+    private static String cpuModel() {
+        try {
+            for (String line : Files.readAllLines(Path.of("/proc/cpuinfo"))) {
+                if (line.startsWith("model name")) return line.substring(line.indexOf(':') + 1).strip();
+            }
+        } catch (IOException e) {
+            return "unknown";
+        }
+        return "unknown";
+    }
+
+    private static String sha256(byte[] raw) {
+        try {
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(raw));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 missing from the runtime", e);
+        }
     }
 
     private static Map<String, Object> benchOne(Map<String, Object> item, int repeat) throws UsageError {

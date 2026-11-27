@@ -39,3 +39,17 @@ tasks.test {
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
 }
+
+tasks.register<JavaExec>("bench") {
+    group = "verification"
+    description = "Runs the pinned benchmark and writes build/bench/report.json"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass = "rhworld.engine.cli.Main"
+    val moduli = rootProject.file("samples/bench-moduli.json")
+    val report = layout.buildDirectory.file("bench/report.json")
+    inputs.file(moduli)
+    outputs.file(report)
+    outputs.upToDateWhen { false }
+    args("bench", "--moduli", moduli.absolutePath, "--repeat", providers.gradleProperty("rhworld.bench.repeat").getOrElse("5"),
+        "--report", report.get().asFile.absolutePath)
+}
