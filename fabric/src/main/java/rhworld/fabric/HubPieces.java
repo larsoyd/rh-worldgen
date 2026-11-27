@@ -111,6 +111,10 @@ public final class HubPieces {
             return new BlockPos(ox, oy, oz);
         }
 
+        public int index() {
+            return index;
+        }
+
         @Override
         protected void addAdditionalSaveData(StructurePieceSerializationContext ctx, CompoundTag tag) {
             super.addAdditionalSaveData(ctx, tag);
