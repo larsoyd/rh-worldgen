@@ -22,6 +22,7 @@ public final class PlayerData {
             .persistent(Codec.STRING).copyOnDeath().buildAndRegister(RhWorldMod.id("opening"));
 
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final java.util.Map<String, SeedChain> CHAINS = new java.util.concurrent.ConcurrentHashMap<>();
 
     private PlayerData() {}
 
@@ -55,6 +56,7 @@ public final class PlayerData {
     public static void release(Player p) {
         flush(p);
         Session.current().flatMap(Session::season).ifPresent(s -> s.release(p.getStringUUID()));
+        CHAINS.keySet().removeIf(k -> k.startsWith(p.getStringUUID()));
     }
 
     public static String commit(Player p, String hex) {
@@ -81,7 +83,12 @@ public final class PlayerData {
         if (state.log().custody() == Custody.SERVER) {
             String top = p.getAttached(CHAIN);
             if (top == null) return "refused: server held chain missing";
-            return new SeedChain(HexFormat.of().parseHex(top), CHAIN_LENGTH).opening(state.log().size());
+            var chain = CHAINS.get(p.getStringUUID() + top);
+            if (chain == null) {
+                chain = new SeedChain(HexFormat.of().parseHex(top), CHAIN_LENGTH);
+                CHAINS.put(p.getStringUUID() + top, chain);
+            }
+            return chain.opening(state.log().size());
         }
         String queued = p.getAttached(OPENING);
         return queued == null ? NO_OPENING : queued;

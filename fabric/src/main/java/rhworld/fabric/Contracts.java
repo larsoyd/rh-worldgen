@@ -10,8 +10,10 @@ public final class Contracts {
         }
     }
 
-    public static final String GATE = "id=GATE gate guarantee basis=RHW-C3 v1 statement=\"colour as asked, hidden realm exactly uniform given the colour,"
-            + " for every admissible key\" applies=with dice the player holds, a server-held chain gives no promise about the dice";
+    public static final String GATE = "id=GATE gate guarantee basis=RHW-C3 v1 statement=\"colour as asked, and an honest report of the hidden realm"
+            + " is exactly uniform given the colour, for every key that passes the client checks and later the reveal check\""
+            + " applies=\"with dice the player holds; a server-held chain gives no promise about the dice; checked only if you replay"
+            + " your rides; a single ride can still be misreported within its colour, only the audit statistics or the reveal catch that\"";
 
     public static final List<Contract> UNCONDITIONAL = List.of(
             new Contract("PUBLIC", "unconditional", false,
