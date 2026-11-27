@@ -108,14 +108,15 @@ only when you ride, and you cannot steer them either. A player without a client 
 chain. Those rides are marked `dice=server-held` everywhere and carry no promise about the dice.
 
 **Sigils and the Concord.** Each realm's pedestal gives that realm's Sigil, once per player. Hold all four and you earn
-the **Concord** advancement, in about six rides on average.
+the **Concord** advancement, in about five rides on average if you ride the colour you still need.
 
 **Death** keeps your attunement, your ride log and your Sigils. You respawn at the hub of the realm you were in.
 
 **Audit and reveal.** `/rhworld audit` counts your rides per colour and the realms you arrived in, flags any report
 whose colour is wrong, and gives the chance that an honest server would show a gap that large. At the end of the season
-the Warden runs `/rhworld reveal <p>`. The server checks the factors through the engine, replays every logged ride
-against them, names the first false report if there is one, and writes the revealed certificate.
+the Warden runs `/rhworld reveal <p>`. The server checks the factors through the engine, replays the logs of the
+players online at that moment against them, names the first false report if there is one, and writes the revealed
+certificate. Offline players can export their log with `/rhworld log` beforehand and replay it themselves.
 
 What the guarantee does not give a player:
 
