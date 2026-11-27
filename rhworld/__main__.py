@@ -6,7 +6,7 @@ from pathlib import Path
 
 from rhworld.fog import Refused, check_modulus, g1_witness, g2_witness, hash_chain_index, side
 from rhworld.gm import make_gm
-from rhworld.world import CLASSES, class_map, layer, render_gm, render_player
+from rhworld.world import CLASSES, class_map, layer, render_gm, render_player, zoom
 
 G1_MARK = (220, 30, 30)
 G2_MARK = (250, 210, 0)
@@ -34,7 +34,9 @@ def public_part(n, out):
     log("control", hash_chain_index=chain)
     out.mkdir(parents=True, exist_ok=True)
     v = layer(n, s)
-    render_player(v, [(g2, G2_MARK)]).save(out / "player.png")
+    img = render_player(v, [(g2, G2_MARK)])
+    img.save(out / "player.png")
+    zoom(img, g2).save(out / "player_zoom.png")
     return {"n_bits": n.bit_length(), "budget": b, "side": s, "g2": g2, "hash_chain_index": chain}, v
 
 
@@ -48,7 +50,9 @@ def world(args):
     g1p, g1q = g1_witness(p, n), g1_witness(q, n)
     log("g1", witness_p=g1p, witness_q=g1q, budget=report["budget"])
     h = layer(p, report["side"])
-    render_gm(v, h, [(g1p, G1_MARK), (report["g2"], G2_MARK)]).save(out / "gm.png")
+    img = render_gm(v, h, [(g1p, G1_MARK), (report["g2"], G2_MARK)])
+    img.save(out / "gm.png")
+    zoom(img, g1p).save(out / "gm_zoom.png")
     counts = class_map(v, h).ravel().tolist()
     tiles = {c.name: counts.count(k) for k, c in enumerate(CLASSES)}
     report.update(g1_p=g1p, g1_q=g1q, tiles=tiles)

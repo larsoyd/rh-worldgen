@@ -49,3 +49,13 @@ def render_gm(v, h, marks):
 
 def render_player(v, marks):
     return paint((v == -1).astype(np.uint8), PLAYER, marks)
+
+
+def zoom(img, x, half=40, scale=8):
+    w, h = img.size
+    r, c = divmod(x - 1, w)
+    top = min(max(r - half, 0), max(h - 2 * half, 0))
+    left = min(max(c - half, 0), max(w - 2 * half, 0))
+    box = (left, top, min(left + 2 * half, w), min(top + 2 * half, h))
+    crop = img.crop(box)
+    return crop.resize((crop.width * scale, crop.height * scale), Image.Resampling.NEAREST)

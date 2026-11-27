@@ -12,7 +12,7 @@ from rhworld.arith import jacobi
 from rhworld.fog import side
 from rhworld.gm import make_gm
 from rhworld.__main__ import G1_MARK, G2_MARK
-from rhworld.world import CLASSES, MARK_RADIUS, PLAYER, class_map, layer, render_gm, render_player, tile
+from rhworld.world import CLASSES, MARK_RADIUS, PLAYER, class_map, layer, render_gm, render_player, tile, zoom
 
 
 def run(*args):
@@ -74,6 +74,29 @@ class Render(unittest.TestCase):
         self.assertEqual(tuple(px[0, 4]), (255, 0, 0))
 
 
+class Zoom(unittest.TestCase):
+    def test_zoom_is_an_exact_upscale_of_the_window(self):
+        rng = np.random.default_rng(0)
+        img = Image.fromarray(rng.integers(0, 255, (60, 200, 3), dtype=np.uint8))
+        z = np.asarray(zoom(img, tile(0, 150, 200), half=20, scale=4))
+        src = np.asarray(img)[0:40, 130:170]
+        self.assertEqual(z.shape, (160, 160, 3))
+        self.assertTrue((z == src.repeat(4, axis=0).repeat(4, axis=1)).all())
+
+    def test_zoom_centres_on_inner_tile_and_clamps_right(self):
+        rng = np.random.default_rng(1)
+        arr = rng.integers(0, 255, (100, 100, 3), dtype=np.uint8)
+        img = Image.fromarray(arr)
+        z = np.asarray(zoom(img, tile(50, 50, 100), half=10, scale=1))
+        self.assertTrue((z == arr[40:60, 40:60]).all())
+        z = np.asarray(zoom(img, tile(95, 98, 100), half=10, scale=1))
+        self.assertTrue((z == arr[80:100, 80:100]).all())
+
+    def test_zoom_clips_at_left_edge(self):
+        img = Image.fromarray(np.zeros((50, 50, 3), dtype=np.uint8))
+        self.assertEqual(zoom(img, 3, half=10, scale=2).size, (40, 40))
+
+
 class Cli(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -97,7 +120,7 @@ class Cli(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertIn("[world] wrote", r.stdout)
             outs.append(out)
-        for name in ("player.png", "gm.png", "report.json"):
+        for name in ("player.png", "gm.png", "gm_zoom.png", "player_zoom.png", "report.json"):
             self.assertEqual((outs[0] / name).read_bytes(), (outs[1] / name).read_bytes(), name)
         rep = json.loads((outs[0] / "report.json").read_text())
         data = json.loads(gm.read_text())
