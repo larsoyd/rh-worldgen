@@ -6,12 +6,13 @@ from pathlib import Path
 
 from rhworld.fog import Refused, check_modulus, g1_witness, g2_witness, hash_chain_index, side
 from rhworld.gm import make_gm
-from rhworld.world import CLASSES, class_map, layer, render_gm, render_player, zoom
+from rhworld.world import CLASSES, class_map, layer, ledger_primes, render_gm, render_ledger, render_player, zoom
 
 G1_MARK = (220, 30, 30)
 G1_RADIUS = 3
 G2_MARK = (250, 210, 0)
 G2_RADIUS = 5
+LEDGER_LIMIT = 1024
 
 
 def log(tag, **fields):
@@ -55,6 +56,8 @@ def world(args):
     img = render_gm(v, h, [(g1p, G1_MARK, G1_RADIUS), (report["g2"], G2_MARK, G2_RADIUS)])
     img.save(out / "gm.png")
     zoom(img, g1p).save(out / "gm_zoom.png")
+    primes = ledger_primes(max(LEDGER_LIMIT, g1p, report["g2"]) + 32)
+    render_ledger(n, p, primes, [(g1p, G1_MARK), (report["g2"], G2_MARK)]).save(out / "ledger.png")
     counts = class_map(v, h).ravel().tolist()
     tiles = {c.name: counts.count(k) for k, c in enumerate(CLASSES)}
     report.update(g1_p=g1p, g1_q=g1q, tiles=tiles)

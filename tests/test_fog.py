@@ -94,6 +94,10 @@ class Witnesses(unittest.TestCase):
         self.assertEqual(str(cm.exception), "refused: budget exceeded")
         self.assertEqual(least_witness(lambda x: jacobi(x, n), 73), 73)
 
+    def test_witness_exactly_at_budget_is_accepted(self):
+        b = budget(GOOD_N)
+        self.assertEqual(least_witness(lambda x: -1 if x == b else 1, b), b)
+
     def test_g2_on_big_n(self):
         w = g2_witness(GOOD_N)
         self.assertEqual(jacobi(w, GOOD_N), -1)

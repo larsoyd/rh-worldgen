@@ -9,10 +9,10 @@ import numpy as np
 from PIL import Image
 
 from rhworld.arith import jacobi
-from rhworld.fog import side
+from rhworld.fog import g1_witness, g2_witness, side
 from rhworld.gm import make_gm
 from rhworld.__main__ import G1_MARK, G1_RADIUS, G2_MARK, G2_RADIUS
-from rhworld.world import CLASSES, PLAYER, class_map, layer, render_gm, render_player, tile, zoom
+from rhworld.world import CLASSES, LEDGER_BACKGROUND, LEDGER_CELL, LEDGER_HEIGHT, PLAYER, class_map, layer, ledger_primes, render_gm, render_ledger, render_player, tile, zoom
 
 
 def run(*args):
@@ -103,6 +103,33 @@ class Zoom(unittest.TestCase):
         self.assertEqual(zoom(img, 3, half=10, scale=2).size, (40, 40))
 
 
+class Ledger(unittest.TestCase):
+    def test_primes_in_order_up_to_limit(self):
+        self.assertEqual(ledger_primes(30), [2, 3, 5, 7, 11, 13, 17, 19, 23, 29])
+
+    def test_each_prime_column_has_its_class_colour_and_witnesses_are_marked(self):
+        p, q = make_gm(512, 0, rigged=True)
+        n = p * q
+        primes = ledger_primes(400)
+        g1, g2 = g1_witness(p, n), g2_witness(n)
+        self.assertNotEqual(g1, g2)
+        px = np.asarray(render_ledger(n, p, primes, [(g1, G1_MARK), (g2, G2_MARK)]))
+        cell, height = LEDGER_CELL, LEDGER_HEIGHT
+        self.assertEqual(px.shape, (height + 2 * cell, cell * len(primes), 3))
+        for k, l in enumerate(primes):
+            want = CLASSES[(jacobi(l, n) == -1) * 2 + (jacobi(l, p) == -1)].rgb
+            self.assertEqual(tuple(px[height // 2, k * cell + cell // 2]), want, l)
+            row1 = tuple(px[height + cell // 2, k * cell + cell // 2])
+            row2 = tuple(px[height + cell + cell // 2, k * cell + cell // 2])
+            self.assertEqual(row1, G1_MARK if l == g1 else LEDGER_BACKGROUND, l)
+            self.assertEqual(row2, G2_MARK if l == g2 else LEDGER_BACKGROUND, l)
+
+    def test_two_marks_on_one_prime_both_show(self):
+        px = np.asarray(render_ledger(15015 * (2 ** 521 - 1), 2 ** 521 - 1, [2, 3], [(3, G1_MARK), (3, G2_MARK)]))
+        self.assertEqual(tuple(px[LEDGER_HEIGHT + 1, LEDGER_CELL + 1]), G1_MARK)
+        self.assertEqual(tuple(px[LEDGER_HEIGHT + LEDGER_CELL + 1, LEDGER_CELL + 1]), G2_MARK)
+
+
 class Cli(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -126,7 +153,7 @@ class Cli(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertIn("[world] wrote", r.stdout)
             outs.append(out)
-        for name in ("player.png", "gm.png", "gm_zoom.png", "player_zoom.png", "report.json"):
+        for name in ("player.png", "gm.png", "gm_zoom.png", "player_zoom.png", "ledger.png", "report.json"):
             self.assertEqual((outs[0] / name).read_bytes(), (outs[1] / name).read_bytes(), name)
         rep = json.loads((outs[0] / "report.json").read_text())
         data = json.loads(gm.read_text())

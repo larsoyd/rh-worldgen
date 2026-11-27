@@ -58,3 +58,26 @@ def zoom(img, x, half=40, scale=8):
     box = (left, top, min(left + 2 * half, w), min(top + 2 * half, h))
     crop = img.crop(box)
     return crop.resize((crop.width * scale, crop.height * scale), Image.Resampling.NEAREST)
+
+
+LEDGER_CELL = 6
+LEDGER_HEIGHT = 24
+LEDGER_BACKGROUND = (250, 250, 250)
+
+
+def ledger_primes(limit):
+    return [x for x in range(2, limit + 1) if all(x % d for d in range(2, int(x ** 0.5) + 1))]
+
+
+def render_ledger(n, p, primes, marks):
+    # every tile's class is the product over its prime factors so this strip decides the whole map
+    height = LEDGER_HEIGHT + LEDGER_CELL * len(marks)
+    rgb = np.full((height, LEDGER_CELL * len(primes), 3), LEDGER_BACKGROUND, dtype=np.uint8)
+    for k, l in enumerate(primes):
+        cols = slice(k * LEDGER_CELL, (k + 1) * LEDGER_CELL)
+        rgb[:LEDGER_HEIGHT, cols] = CLASSES[(jacobi(l, n) == -1) * 2 + (jacobi(l, p) == -1)].rgb
+        for slot, (x, colour) in enumerate(marks):
+            if x == l:
+                top = LEDGER_HEIGHT + slot * LEDGER_CELL
+                rgb[top:top + LEDGER_CELL, cols] = colour
+    return Image.fromarray(rgb)
