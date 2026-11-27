@@ -48,8 +48,8 @@ public final class Season {
         return warden.modulus();
     }
 
-    public Player join(String commitment) {
-        return new Player(BigInteger.ONE, new RideLog(warden.modulus(), commitment), new Concord());
+    public Player join(String commitment, Custody custody) {
+        return new Player(BigInteger.ONE, new RideLog(warden.modulus(), commitment, custody), new Concord());
     }
 
     public Ride ride(Player player, Colour colour, String opening) {

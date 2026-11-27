@@ -16,7 +16,7 @@ class AuditTest {
 
     private static RideLog session(int count, int tag, UnaryOperator<Realm> report, boolean warmOnly) {
         SeedChain chain = chain(tag, count);
-        RideLog log = new RideLog(RIGGED.modulus(), chain.commitment());
+        RideLog log = new RideLog(RIGGED.modulus(), chain.commitment(), Custody.PLAYER);
         BigInteger x = BigInteger.ONE;
         for (int r = 0; r < count; r++) {
             Colour colour = warmOnly || r % 2 == 0 ? Colour.WARM : Colour.COLD;
@@ -56,7 +56,7 @@ class AuditTest {
         assertEquals(0, v.publicMismatches());
         assertEquals(4 * Math.pow(2, -20), v.pValue(), 1e-18);
         assertEquals("[audit] rides_warm=20 rides_cold=0 hearth=20 ember=0 mist=0 frost=0 mismatches=0 weakest=ember "
-                + "p=3.814697265625E-6 verdict=accused", v.line());
+                + "p=3.814697265625E-6 verdict=accused dice=player", v.line());
     }
 
     @Test
@@ -97,13 +97,13 @@ class AuditTest {
         String json = log.toJson();
         assertEquals(json, RideLog.fromJson(json).toJson());
         assertEquals(log.rides(), RideLog.fromJson(json).rides());
-        assertTrue(json.startsWith("{\"commitment\":\"" + chain(6, 5).commitment() + "\",\"format\":\"rhworld.rides/1\",\"n\":\"" + RIGGED.modulus() + "\",\"rides\":[{\"after\":\""), json);
+        assertTrue(json.startsWith("{\"commitment\":\"" + chain(6, 5).commitment() + "\",\"dice\":\"player\",\"format\":\"rhworld.rides/1\",\"n\":\"" + RIGGED.modulus() + "\",\"rides\":[{\"after\":\""), json);
     }
 
     @Test
     void logRefusesAGapInTheIndex() {
         SeedChain c = chain(9, 3);
-        RideLog log = new RideLog(BigInteger.valueOf(15), c.commitment());
+        RideLog log = new RideLog(BigInteger.valueOf(15), c.commitment(), Custody.PLAYER);
         log.add(new Ride(0, Colour.WARM, c.opening(0), BigInteger.ONE, BigInteger.TWO, Realm.HEARTH));
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
                 () -> log.add(new Ride(2, Colour.WARM, c.opening(2), BigInteger.TWO, BigInteger.TWO, Realm.HEARTH)));
