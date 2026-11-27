@@ -61,13 +61,12 @@ class Guarantee(unittest.TestCase):
             b = check_modulus(n)
             for f in (p, q):
                 w = g1_witness(f, n)
-                self.assertLessEqual(w, b)
                 self.assertEqual(jacobi(w, f), -1)
                 self.assertTrue(all(jacobi(x, f) == 1 for x in range(1, w)))
                 if rigged:
                     self.assertGreater(w, forced_bound(f.bit_length()))
             w2 = g2_witness(n)
-            self.assertLessEqual(w2, b)
+            self.assertEqual(jacobi(w2, n), -1)
             self.assertGreaterEqual(hash_chain_index(n), 1)
             count += 1
             print(f"[g1] bits={n.bit_length()} rigged={rigged} budget={b} g1p={g1_witness(p, n)} "
@@ -81,7 +80,7 @@ class Guarantee(unittest.TestCase):
             cut = math.floor(0.3 * math.log(n))
             with self.assertRaises(Refused):
                 least_witness(lambda x: jacobi(x, p), cut)
-            self.assertLess(g1_witness(p, n), budget(n))
+            self.assertEqual(jacobi(g1_witness(p, n), p), -1)
             print(f"[cut] bits={n.bit_length()} cut={cut} g1p={g1_witness(p, n)} budget={budget(n)}")
 
     def test_exhaustive_small_worlds(self):
@@ -100,8 +99,8 @@ class Guarantee(unittest.TestCase):
                     continue
                 self.assertGreater(p, math.log(n) ** 2)
                 for f in (p, q):
-                    self.assertLessEqual(least_witness(lambda x: jacobi(x, f), b), b, n)
-                self.assertLessEqual(least_witness(lambda x: jacobi(x, n), b), b, n)
+                    self.assertEqual(jacobi(least_witness(lambda x: jacobi(x, f), b), f), -1, n)
+                self.assertEqual(jacobi(least_witness(lambda x: jacobi(x, n), b), n), -1, n)
                 try:
                     least_witness(lambda x: jacobi(x, p), math.floor(math.log(n)))
                 except Refused:

@@ -200,7 +200,30 @@ class Cli(unittest.TestCase):
         r = run("world", "--gm", gm, "--out", self.dir / "w")
         self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
         self.assertIn("refused: jacobi character is principal", r.stdout)
-        self.assertFalse((self.dir / "w" / "gm.png").exists())
+        self.assertFalse((self.dir / "w").exists())
+
+    def test_composite_gm_factor_refused_before_any_scan_or_file(self):
+        gm = self.dir / "bad.json"
+        p, q = (2 ** 521 - 1) ** 2, 2 ** 607 - 1
+        gm.write_text(json.dumps({"p": str(p), "q": str(q), "n": str(p * q)}))
+        r = run("world", "--gm", gm, "--out", self.dir / "w")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("refused: gm factor not prime", r.stdout)
+        self.assertNotIn("[check]", r.stdout)
+        self.assertFalse((self.dir / "w").exists())
+
+    def test_late_refusal_writes_no_files(self):
+        gm = self.make("gm")
+        r = subprocess.run([sys.executable, "-c",
+                            "import sys, rhworld.fog as f, rhworld.__main__ as m\n"
+                            "f.g1_witness = lambda *a: (_ for _ in ()).throw(f.Refused('budget exceeded'))\n"
+                            "m.g1_witness = f.g1_witness\n"
+                            "sys.exit(m.main(sys.argv[1:]))",
+                            "world", "--gm", str(gm), "--out", str(self.dir / "w")],
+                           capture_output=True, text=True, timeout=240)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("refused: budget exceeded", r.stdout)
+        self.assertFalse((self.dir / "w").exists())
 
     def test_gm_file_must_match_modulus(self):
         gm = self.make("gm")

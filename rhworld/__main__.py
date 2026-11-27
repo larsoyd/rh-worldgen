@@ -4,6 +4,7 @@ import sys
 import time
 from pathlib import Path
 
+from rhworld.arith import is_probable_prime
 from rhworld.fog import Refused, check_modulus, g1_witness, g2_witness, hash_chain_index, side
 from rhworld.gm import make_gm
 from rhworld.world import CLASSES, class_map, layer, ledger_primes, render_gm, render_ledger, render_player, zoom
@@ -26,7 +27,7 @@ def write_gm(args):
     log("gm", wrote=args.out, n_bits=(p * q).bit_length(), rigged=args.rigged)
 
 
-def public_part(n, out):
+def public_part(n):
     start = time.monotonic()
     b = check_modulus(n)
     s = side(n)
@@ -35,12 +36,14 @@ def public_part(n, out):
     chain = hash_chain_index(n)
     log("g2", witness=g2, budget=b)
     log("control", hash_chain_index=chain)
+    return {"n_bits": n.bit_length(), "budget": b, "side": s, "g2": g2, "hash_chain_index": chain}
+
+
+def write_player(out, report, v):
     out.mkdir(parents=True, exist_ok=True)
-    v = layer(n, s)
-    img = render_player(v, [(g2, G2_MARK, G2_RADIUS)])
+    img = render_player(v, [(report["g2"], G2_MARK, G2_RADIUS)])
     img.save(out / "player.png")
-    zoom(img, g2).save(out / "player_zoom.png")
-    return {"n_bits": n.bit_length(), "budget": b, "side": s, "g2": g2, "hash_chain_index": chain}, v
+    zoom(img, report["g2"]).save(out / "player_zoom.png")
 
 
 def world(args):
@@ -48,26 +51,32 @@ def world(args):
     p, q, n = int(data["p"]), int(data["q"]), int(data["n"])
     if p * q != n:
         raise Refused("gm file factors do not match n")
-    out = Path(args.out)
-    report, v = public_part(n, out)
+    if not (is_probable_prime(p) and is_probable_prime(q)):
+        raise Refused("gm factor not prime")
+    report = public_part(n)
     g1p, g1q = g1_witness(p, n), g1_witness(q, n)
     log("g1", witness_p=g1p, witness_q=g1q, budget=report["budget"])
-    h = layer(p, report["side"])
+    s = report["side"]
+    v, h = layer(n, s), layer(p, s)
+    counts = class_map(v, h).ravel().tolist()
+    tiles = {c.name: counts.count(k) for k, c in enumerate(CLASSES)}
+    report.update(g1_p=g1p, g1_q=g1q, tiles=tiles)
+    out = Path(args.out)
+    write_player(out, report, v)
     img = render_gm(v, h, [(g1p, G1_MARK, G1_RADIUS), (report["g2"], G2_MARK, G2_RADIUS)])
     img.save(out / "gm.png")
     zoom(img, g1p).save(out / "gm_zoom.png")
     primes = ledger_primes(max(LEDGER_LIMIT, g1p, report["g2"]) + 32)
     render_ledger(n, p, primes, [(g1p, G1_MARK), (report["g2"], G2_MARK)]).save(out / "ledger.png")
-    counts = class_map(v, h).ravel().tolist()
-    tiles = {c.name: counts.count(k) for k, c in enumerate(CLASSES)}
-    report.update(g1_p=g1p, g1_q=g1q, tiles=tiles)
     (out / "report.json").write_text(json.dumps(report, indent=1) + "\n")
     log("world", wrote=out, **{k.replace(" ", "_"): t for k, t in tiles.items()})
 
 
 def player(args):
+    n = int(args.n)
+    report = public_part(n)
     out = Path(args.out)
-    report, _ = public_part(int(args.n), out)
+    write_player(out, report, layer(n, report["side"]))
     (out / "report.json").write_text(json.dumps(report, indent=1) + "\n")
     log("player", wrote=out)
 
