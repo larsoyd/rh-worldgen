@@ -45,6 +45,17 @@ rc=$?
 secs=$(( $(date +%s) - start ))
 
 grep -a '\[rhworld' "$log" | sed 's/.*\]: //'
+if [[ $scenario == refuse-* ]]; then
+    want="refused: ${scenario#refuse-}"
+    want=${want//-/ }
+    echo "[rhworld-test] world_dir=$run/world log=$log gradle_exit=$rc secs=$secs"
+    if grep -aq "event=load .*result=$want" "$log" && ! grep -aq 'Done (' "$log"; then
+        echo "[rhworld-test] verdict=pass scenario=$scenario reason=\"$want\""
+        exit 0
+    fi
+    echo "[rhworld-test] verdict=fail scenario=$scenario expected=\"$want\""
+    exit 1
+fi
 verdict=$(grep -a '\[rhworld-test\] verdict=' "$log" | tail -1 | sed 's/.*\]: //')
 echo "[rhworld-test] world_dir=$run/world log=$log gradle_exit=$rc secs=$secs"
 case "$verdict" in
