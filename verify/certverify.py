@@ -2,11 +2,21 @@ import hashlib
 import math
 
 from verify import certcheck
-from verify.reveal import Refused, check_certificate, check_reveal
+from verify.gate_bench import primes_upto
+from verify.reveal import Refused, bpsw, check_certificate, kronecker_odd
 
-ADMISSIBLE = "rhworld.modulus.admissible"
-G2 = "rhworld.g2.least-jacobi-nonresidue"
-NOT_PROVED = ("GRH is not checked by this certificate", "G1 holds before reveal only by theorem")
+CONTRACTS = [{"id": "RHW-C1", "version": 1}, {"id": "RHW-C3", "version": 1}]
+LEAN = "LFunction_ne_zero_of_half_lt_re"
+PAPER = "Lamzouri, Li, Soundararajan, Math. Comp. 84 (2015), arXiv 1309.3595v3, Thm 1.1 (2)"
+NOT_PROVED = [
+    "GRH is not checked by this certificate. It is the hypothesis of the cited paper, machine-checked only as the Lean "
+    "statement named in theorem",
+    "the explicit bound (log q)^2 is a published result and is not machine-checked",
+    "claims about the hidden factors hold only after a reveal that passes the reveal check",
+    "probable prime means the named fixed-base test passed, not a proof, unless factors_status is proved",
+    "nothing is claimed about any window other than the prefix 1..B",
+    "hiding the factors rests on the hardness of factoring, not on RH",
+]
 
 
 def need(ok, field):
@@ -14,83 +24,120 @@ def need(ok, field):
         raise Refused(f"bad field {field}")
 
 
-def lookup(node, dotted):
-    # contract ids hold dots so each step takes the longest key that matches
-    while dotted:
-        if not isinstance(node, dict):
-            return None
-        keys = [k for k in node if dotted == k or dotted.startswith(k + ".")]
-        if not keys:
-            return None
-        key = max(keys, key=len)
-        node, dotted = node[key], dotted[len(key) + 1:]
-    return node
+def world_id(cert):
+    return hashlib.sha256(certcheck.dump({"header": cert["header"], "recomputed": cert["recomputed"]})).hexdigest()
 
 
-def check_header(cert):
-    h = cert.get("header", {})
-    need(h.get("schema") == "rhworld.cert/1", "header.schema")
-    n = int(h.get("params", {}).get("n", "0"))
-    need(h["params"].get("k") == n.bit_length(), "header.params.k")
-    return n
+def least_minus_one(m, bound):
+    return next((x for x in range(1, bound + 1) if kronecker_odd(x, m) == -1), None)
 
 
-def check_admissible(n, rec):
-    b = certcheck.budget(n.bit_length())
-    s = math.isqrt(b - 1) + 1
-    need(rec.get("probable_prime_test") == "mr25-fixed-bases", f"recomputed.{ADMISSIBLE}.probable_prime_test")
-    need(rec.get("trial_division_limit") == max(b, s * s), f"recomputed.{ADMISSIBLE}.trial_division_limit")
-    need(rec.get("outcome") == "ok" and certcheck.admissible(n) == "ok", f"recomputed.{ADMISSIBLE}.outcome")
+def basis(layers, bound):
+    kept, vectors, reduced = [], [], []
+    primes = primes_upto(bound)
+    for count, l in enumerate(primes, 1):
+        v = sum(1 << i for i, m in enumerate(layers) if kronecker_odd(l, m) == -1)
+        r = v
+        for b in reduced:
+            r = min(r, r ^ b)
+        if r:
+            reduced.append(r)
+            kept.append(l)
+            vectors.append(v)
+            if len(kept) == len(layers):
+                return {"primes": kept, "vectors": vectors, "rank": len(kept), "steps": count}
+    return {"primes": kept, "vectors": vectors, "rank": len(kept), "steps": len(primes)}
 
 
-def check_g2(n, rec):
-    b = certcheck.budget(n.bit_length())
-    field = f"recomputed.{G2}"
-    need(rec.get("bound") == b, f"{field}.bound")
-    need(rec.get("budget_exact") is True, f"{field}.budget_exact")
-    need(rec.get("claim_scope") == "prefix 1..B", f"{field}.claim_scope")
-    try:
-        certcheck.check_g2(n, rec.get("witness"))
-    except (Refused, TypeError):
-        need(False, f"{field}.witness")
-    need(rec.get("steps") == rec["witness"], f"{field}.steps")
+def check_witness(obj, m, bound, field):
+    w = least_minus_one(m, bound)
+    need(obj == {"bound": bound, "steps": w, "witness": w}, field)
+
+
+def check_c1(n, c1, b):
+    side = math.isqrt(b - 1) + 1
+    limit = max(b, side * side)
+    expect = {"bits": n.bit_length(), "min_bits": 1024, "budget": b, "side": side, "trial_limit": limit,
+              "square": math.isqrt(n) ** 2 == n, "probable_prime": certcheck.mr25(n),
+              "primes_tested": len(primes_upto(limit))}
+    for key, value in expect.items():
+        need(c1.get(key) == value, f"recomputed.c1.{key}")
+    need(certcheck.admissible(n) == "ok", "recomputed.c1")
+    check_witness(c1.get("g2"), n, b, "recomputed.c1.g2")
+
+
+def check_c3(c3, layers, b, field):
+    need(c3.get("bound") == b, f"{field}.bound")
+    found = basis(layers, b)
+    for key, value in found.items():
+        need(c3.get("basis", {}).get(key) == value, f"{field}.basis.{key}")
+    if "independent" in c3:
+        need(c3["independent"] is (found["rank"] == len(layers)), f"{field}.independent")
+    return found
+
+
+def resolve(cert, dotted):
+    node = cert
+    for key in dotted.split("."):
+        if not isinstance(node, dict) or key not in node:
+            return False
+        node = node[key]
+    return True
 
 
 def check_theorem(cert):
-    for cid, entry in cert.get("theorem", {}).items():
-        pointers = entry.get("hypothesis_instance", {})
-        need(pointers and all(lookup(cert, v) is not None for v in pointers.values()),
-             f"theorem.{cid}.hypothesis_instance")
+    for c in CONTRACTS:
+        t = cert.get("theorem", {}).get(c["id"], {})
+        field = f"theorem.{c['id']}"
+        need(t.get("claim_scope") == "prefix 1..B", f"{field}.claim_scope")
+        refs = [link.get("ref") for link in t.get("chain", [])]
+        need(refs[:2] == [LEAN, PAPER], f"{field}.chain")
+        for h in t.get("hypotheses", []):
+            pending = h["checked_by"].startswith("deferred.reveal.") and cert["deferred"]["reveal"] is None
+            need(pending or resolve(cert, h["checked_by"]), f"{field}.hypotheses")
 
 
-def check_deferred(n, d):
-    reveal = d.get("reveal")
-    if reveal is None:
-        need(d.get("factors_status") == "unrevealed", "deferred.factors_status")
-        return
-    p = int(reveal.get("p", "0"))
-    try:
-        small, big = check_reveal(n, p)
-    except Refused:
-        need(False, "deferred.reveal.p")
-    need(p == small, "deferred.reveal.p")
-    evidence = reveal.get("evidence", {})
-    try:
-        proved = all(check_certificate(f, evidence[str(f)]) == "proved" for f in (small, big))
-    except (Refused, KeyError):
-        proved = False
-    need(d.get("factors_status") == ("proved" if proved else "bpsw-probable"), "deferred.factors_status")
+def check_reveal(n, r, b):
+    p, q = int(r.get("p", "0")), int(r.get("q", "0"))
+    need(p * q == n and p < q, "deferred.reveal.p")
+    need(bpsw(p), "deferred.reveal.p")
+    need(bpsw(q), "deferred.reveal.q")
+    need(r.get("primality_test") == "mr25-fixed-bases", "deferred.reveal.primality_test")
+    status = "mr25-probable"
+    if "proofs" in r:
+        try:
+            ok = all(check_certificate(f, r["proofs"][k]) == "proved" for k, f in (("p", p), ("q", q)))
+        except (Refused, KeyError, TypeError):
+            ok = False
+        need(ok, "deferred.reveal.proofs")
+        status = "proved"
+    need(r.get("factors_status") == status, "deferred.reveal.factors_status")
+    check_witness(r.get("g1", {}).get("p"), p, b, "deferred.reveal.g1.p")
+    check_witness(r.get("g1", {}).get("q"), q, b, "deferred.reveal.g1.q")
+    hidden = r.get("c3_hidden", {})
+    need(hidden.get("layers") == ["p", "q"], "deferred.reveal.c3_hidden.layers")
+    found = check_c3(hidden, [p, q], b, "deferred.reveal.c3_hidden")
+    need(found["rank"] == 2, "deferred.reveal.c3_hidden.basis.rank")
 
 
 def verify(raw):
-    cert = certcheck.parse(raw)
-    n = check_header(cert)
+    # one trailing newline is file framing and not part of the canonical bytes
+    cert = certcheck.parse(raw[:-1] if raw.endswith(b"\n") else raw)
+    h = cert.get("header", {})
+    need(h.get("schema") == "rhworld.cert/1", "header.schema")
+    n = int(h.get("params", {}).get("n", "0"))
+    need(h["params"].get("bits") == n.bit_length(), "header.params.bits")
+    need(h.get("contracts") == CONTRACTS, "header.contracts")
     rec = cert.get("recomputed", {})
-    check_admissible(n, rec.get(ADMISSIBLE, {}))
-    check_g2(n, rec.get(G2, {}))
-    body = certcheck.dump({"header": cert["header"], "recomputed": rec})
-    need(cert.get("world_id") == hashlib.sha256(body).hexdigest(), "world_id")
+    need(rec.get("budget_exact") is True, "recomputed.budget_exact")
+    need(rec.get("primality_test") == "mr25-fixed-bases", "recomputed.primality_test")
+    b = certcheck.budget(n.bit_length())
+    check_c1(n, rec.get("c1", {}), b)
+    c3 = rec.get("c3", {})
+    need(c3.get("layers") == ["n"] and c3.get("lcm_bits") == n.bit_length(), "recomputed.c3.layers")
+    check_c3(c3, [n], b, "recomputed.c3")
     check_theorem(cert)
-    need(all(s in cert.get("not_proved", []) for s in NOT_PROVED), "not_proved")
-    check_deferred(n, cert.get("deferred", {}))
-    return "ok"
+    need(cert.get("not_proved") == NOT_PROVED, "not_proved")
+    if cert.get("deferred", {}).get("reveal") is not None:
+        check_reveal(n, cert["deferred"]["reveal"], b)
+    return world_id(cert)
