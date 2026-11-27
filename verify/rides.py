@@ -6,6 +6,7 @@ from verify.gate_bench import primes_upto
 from verify.reveal import Refused, kronecker_odd
 
 REALMS = {(1, 1): "hearth", (-1, -1): "ember", (1, -1): "mist", (-1, 1): "frost"}
+CUSTODY = {"player": "met", "server-held": "not_met"}
 COLOUR = {"hearth": "warm", "ember": "warm", "mist": "cold", "frost": "cold"}
 
 
@@ -47,6 +48,7 @@ def realm(x, p, q):
 def replay(raw, p=None):
     log = certcheck.parse(raw)
     need(log.get("format") == "rhworld.rides/1", "format")
+    need(log.get("dice") in CUSTODY, "dice")
     n = int(log["n"])
     link = bytes.fromhex(log["commitment"])
     x = 1
@@ -61,4 +63,4 @@ def replay(raw, p=None):
         if p is not None:
             need(r["reported"] == realm(int(r["after"]), p, n // p), f"ride {i} reported")
         link, x = opening, int(r["after"])
-    return len(log["rides"])
+    return {"rides": len(log["rides"]), "dice": log["dice"], "condition8": CUSTODY[log["dice"]]}
