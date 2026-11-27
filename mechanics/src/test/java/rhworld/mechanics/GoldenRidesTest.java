@@ -55,10 +55,10 @@ class GoldenRidesTest {
     private static void pin(String name, Warden warden) throws IOException {
         RideLog log = generate(warden);
         Path file = Path.of("..", "samples", "rides-" + name + ".json");
-        if ("1".equals(System.getenv("RHWORLD_WRITE_GOLDEN"))) Files.writeString(file, log.toJson() + "\n");
+        if ("1".equals(System.getenv("RHWORLD_WRITE_GOLDEN"))) Files.writeString(file, log.toJson());
         String steer = steering(log);
         System.out.println("[golden-rides] name=" + name + " rides=" + RIDES + " steering=" + steer);
-        assertEquals(Files.readString(file).strip(), log.toJson(), "file=" + file);
+        assertEquals(Files.readString(file), log.toJson(), "file=" + file);
         assertEquals(Optional.empty(), Replay.check(RideLog.fromJson(Files.readString(file))));
         assertTrue(steer.contains("0") && steer.contains("1"), "steering pattern=" + steer + " needs both witness bits");
     }

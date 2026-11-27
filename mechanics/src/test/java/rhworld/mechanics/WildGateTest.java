@@ -94,7 +94,7 @@ class WildGateTest {
         for (int r = 0; r < 200; r++) {
             Colour colour = r % 2 == 0 ? Colour.WARM : Colour.COLD;
             x = small.ride(x, colour, Dice.bits(seed(7), r, small.size()));
-            assertEquals(colour == Colour.WARM ? Realm.HEARTH : Realm.FROST, RIGGED.realm(x), "ride=" + r);
+            assertEquals(colour == Colour.WARM ? Realm.HEARTH : Realm.MIST, RIGGED.realm(x), "ride=" + r);
         }
     }
 

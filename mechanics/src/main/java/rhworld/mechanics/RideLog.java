@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import rhworld.engine.json.Json;
+import rhworld.engine.json.JsonException;
 
 public final class RideLog {
     public static final String FORMAT = "rhworld.rides/1";
@@ -69,30 +70,53 @@ public final class RideLog {
     }
 
     public static RideLog fromJson(String text) {
-        return fromMap((Map<?, ?>) Json.parse(text));
+        Object root;
+        try {
+            root = Json.parse(text);
+        } catch (JsonException e) {
+            throw new IllegalArgumentException("refused: ride log is not json");
+        }
+        if (!Json.write(root).equals(text)) throw new IllegalArgumentException("refused: ride log is not canonical json");
+        if (!(root instanceof Map<?, ?> m)) throw malformed("root");
+        return fromMap(m);
     }
 
     static RideLog fromMap(Map<?, ?> root) {
         if (!FORMAT.equals(root.get("format"))) throw new IllegalArgumentException("refused: unknown ride log format=" + root.get("format"));
-        RideLog log = new RideLog(new BigInteger((String) root.get("n")), (String) root.get("commitment"),
-                Custody.ofLabel((String) root.get("dice")));
-        for (Object o : (List<?>) root.get("rides")) {
-            Map<?, ?> m = (Map<?, ?>) o;
-            log.add(new Ride(((BigInteger) m.get("index")).longValueExact(),
-                    Colour.valueOf(upper(m.get("colour"))),
-                    (String) m.get("opening"),
-                    new BigInteger((String) m.get("before")),
-                    new BigInteger((String) m.get("after")),
-                    Realm.valueOf(upper(m.get("reported")))));
+        RideLog log = new RideLog(integer(root, "n"), field(root, "commitment", String.class), Custody.ofLabel(field(root, "dice", String.class)));
+        for (Object o : field(root, "rides", List.class)) {
+            if (!(o instanceof Map<?, ?> m)) throw malformed("rides");
+            BigInteger index = field(m, "index", BigInteger.class);
+            log.add(new Ride(index.longValueExact(), value(Colour.class, m, "colour"),
+                    field(m, "opening", String.class), integer(m, "before"), integer(m, "after"),
+                    value(Realm.class, m, "reported")));
         }
         return log;
+    }
+
+    private static <T> T field(Map<?, ?> m, String key, Class<T> type) {
+        Object v = m.get(key);
+        if (!type.isInstance(v)) throw malformed(key);
+        return type.cast(v);
+    }
+
+    private static BigInteger integer(Map<?, ?> m, String key) {
+        String s = field(m, key, String.class);
+        if (!s.matches("0|[1-9][0-9]*")) throw malformed(key);
+        return new BigInteger(s);
+    }
+
+    private static IllegalArgumentException malformed(String key) {
+        return new IllegalArgumentException("refused: malformed ride log field=" + key);
     }
 
     private static String name(Enum<?> e) {
         return e.name().toLowerCase(Locale.ROOT);
     }
 
-    private static String upper(Object s) {
-        return ((String) s).toUpperCase(Locale.ROOT);
+    private static <E extends Enum<E>> E value(Class<E> type, Map<?, ?> m, String key) {
+        String s = field(m, key, String.class);
+        for (E e : type.getEnumConstants()) if (name(e).equals(s)) return e;
+        throw malformed(key);
     }
 }
