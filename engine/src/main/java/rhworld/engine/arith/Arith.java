@@ -95,7 +95,7 @@ public final class Arith {
         return OptionalLong.empty();
     }
 
-    private static int[] limbs(BigInteger n) {
+    static int[] limbs(BigInteger n) {
         byte[] b = n.toByteArray();
         int[] out = new int[(b.length + 3) / 4];
         for (int i = 0; i < b.length; i++) {
@@ -105,7 +105,7 @@ public final class Arith {
         return out;
     }
 
-    private static long remainder(int[] limbs, int p) {
+    static long remainder(int[] limbs, int p) {
         long r = 0;
         for (int limb : limbs) r = ((r << 32) | (limb & 0xffffffffL)) % p;
         return r;
