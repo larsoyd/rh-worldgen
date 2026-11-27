@@ -2,6 +2,7 @@ package rhworld.engine.arith;
 
 import java.math.BigInteger;
 import java.util.OptionalLong;
+import rhworld.engine.contract.Verdict;
 
 public final class Arith {
     static final int[] BASES = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97};
@@ -77,6 +78,28 @@ public final class Arith {
             if (witness) return false;
         }
         return true;
+    }
+
+    public static Verdict<BigInteger> subsetProduct(long[] bits, int[] primes, BigInteger n) {
+        if (n.compareTo(BigInteger.ONE) <= 0) return new Verdict.Refused<>("modulus must exceed one n=" + n);
+        if (bits.length != (primes.length + 63) / 64) {
+            return new Verdict.Refused<>("bits do not match primes words=" + bits.length + " primes=" + primes.length);
+        }
+        int tail = primes.length & 63;
+        if (tail != 0 && bits[bits.length - 1] >>> tail != 0) {
+            return new Verdict.Refused<>("bit set beyond primes index=" + (64 * bits.length - 1 - Long.numberOfLeadingZeros(bits[bits.length - 1])));
+        }
+        BigInteger x = BigInteger.ONE;
+        long acc = 1;
+        for (int i = 0; i < primes.length; i++) {
+            if ((bits[i >>> 6] >>> (i & 63) & 1) == 0) continue;
+            if (acc > Long.MAX_VALUE / primes[i]) {
+                x = x.multiply(BigInteger.valueOf(acc)).mod(n);
+                acc = 1;
+            }
+            acc *= primes[i];
+        }
+        return new Verdict.Ok<>(x.multiply(BigInteger.valueOf(acc)).mod(n));
     }
 
     public static boolean isPerfectSquare(BigInteger n) {
