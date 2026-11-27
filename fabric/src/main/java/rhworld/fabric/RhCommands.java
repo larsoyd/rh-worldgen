@@ -35,7 +35,7 @@ public final class RhCommands {
         var root = Commands.literal("rhworld");
         root.then(Commands.literal("inspect").executes(ctx -> run(ctx, "inspect", RhCommands::inspect)));
         root.then(Commands.literal("contracts").executes(ctx -> run(ctx, "contracts", RhCommands::contracts)));
-        root.then(Commands.literal("verify").executes(ctx -> run(ctx, "verify", (src, s) -> verify(s))));
+        root.then(Commands.literal("verify").executes(ctx -> run(ctx, "verify", RhCommands::verify)));
         root.then(Commands.literal("neighbours").executes(ctx -> run(ctx, "neighbours", RhCommands::neighbours)));
         root.then(Commands.literal("resources").executes(ctx -> run(ctx, "resources", RhCommands::resources)));
         root.then(Commands.literal("audit").executes(ctx -> run(ctx, "audit", RhCommands::audit)));
@@ -117,8 +117,18 @@ public final class RhCommands {
         return lines;
     }
 
+    static java.nio.file.Path export(CommandSourceStack src, String name, String json) {
+        var dir = src.getServer().getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).resolve("rhworld");
+        try {
+            java.nio.file.Files.createDirectories(dir);
+            return java.nio.file.Files.writeString(dir.resolve(name), json);
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException("refused: cannot write " + name);
+        }
+    }
+
     @SuppressWarnings("unchecked")
-    static List<String> verify(Session s) {
+    static List<String> verify(CommandSourceStack src, Session s) {
         var root = (java.util.Map<String, Object>) rhworld.engine.json.Json.parse(s.certificate());
         var rec = (java.util.Map<String, Object>) root.get("recomputed");
         var c1 = (java.util.Map<String, Object>) rec.get("c1");
@@ -126,12 +136,14 @@ public final class RhCommands {
         var g2 = (java.util.Map<String, Object>) c1.get("g2");
         var checked = Certificate.verify(s.certificate(), Session.TELEMETRY);
         String verdict = checked instanceof rhworld.engine.contract.Verdict.Ok<?> ? "ok" : checked.toString();
+        var file = export(src, "world-" + s.worldId() + ".cert.json", s.certificate());
         return List.of(
                 "recomputed: c1 bits=" + c1.get("bits") + " min_bits=" + c1.get("min_bits") + " square=" + c1.get("square")
                         + " probable_prime=" + c1.get("probable_prime") + " trial_limit=" + c1.get("trial_limit")
                         + " primes_tested=" + c1.get("primes_tested") + " budget=" + c1.get("budget") + " g2_witness=" + g2.get("witness"),
                 "recomputed: c3 bound=" + c3.get("bound") + " independent=" + c3.get("independent") + " primality_test=" + rec.get("primality_test"),
-                "recomputed: certificate world_id=" + s.worldId() + " verify=" + verdict,
+                "recomputed: certificate world_id=" + s.worldId() + " verify=" + verdict + ", the engine rechecking its own certificate from n",
+                "independent: rhworld verify " + file + " or verify.certverify.verify on its bytes from the repository",
                 "by-theorem: " + rhworld.engine.contract.C1.ID + " and " + rhworld.engine.contract.C3.ID
                         + " hold for this admitted n if GRH holds, see /rhworld contracts",
                 "by-theorem: G1 unchecked until reveal");
@@ -196,8 +208,10 @@ public final class RhCommands {
             lines.add("player=" + player.getScoreboardName() + " rides=" + log.rides().size() + " dice=" + log.custody().label()
                     + " public_replay=" + publicReplay.orElse("ok") + " " + hidden);
         }
+        var cert = Certificate.of(ok.value());
+        var file = export(src, "revealed-" + cert.worldId() + ".cert.json", cert.json());
         lines.add("reveal accepted rank=" + ok.value().hiddenBasis().rank() + " factors=" + ok.value().factorsStatus()
-                + " world_id=" + Certificate.of(ok.value()).worldId());
+                + " world_id=" + cert.worldId() + " certificate=" + file.getFileName());
         return lines;
     }
 

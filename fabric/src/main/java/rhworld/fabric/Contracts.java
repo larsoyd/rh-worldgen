@@ -5,7 +5,8 @@ import java.util.List;
 public final class Contracts {
     public record Contract(String id, String label, boolean grh, String statement, String checked) {
         public String line() {
-            return "id=" + id + " label=" + label + " grh=" + (grh ? "yes" : "no") + " statement=\"" + statement + "\" checked=\"" + checked + "\"";
+            return "id=" + id + " label=" + label + " grh=" + (grh ? "yes" : "no") + " kind=adapter, not an engine contract statement=\""
+                    + statement + "\" checked=\"" + checked + "\"";
         }
     }
 
@@ -18,7 +19,13 @@ public final class Contracts {
                     "none needed"),
             new Contract("REVEAL", "unconditional", false,
                     "with p revealed every logged report is replayed and the first false one is named",
-                    "reveal command"));
+                    "reveal command"),
+            new Contract("HUBS", "unconditional", false,
+                    "each realm has one hub at block 0,0 above the sea and no other structure starts within 16 chunks of it",
+                    "dedicated server hubs test and the offline region check"),
+            new Contract("DICE", "unconditional", false,
+                    "a ride's dice are the next opening of the player's committed chain, server-held chains are marked condition8=not_met",
+                    "public replay of the log"));
 
     // the theorem backed contracts are printed from the engine, never restated here
     public static List<String> engine() {

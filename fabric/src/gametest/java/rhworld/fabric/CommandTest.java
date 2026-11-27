@@ -28,6 +28,14 @@ public final class CommandTest {
         return new Run(result, lines);
     }
 
+    static Run tryRun(GameTestHelper helper, String command) {
+        try {
+            return run(helper, command);
+        } catch (CommandSyntaxException e) {
+            return new Run(0, List.of("refused: parse " + e.getMessage()));
+        }
+    }
+
     static String all(Run r) {
         return String.join("\n", r.lines());
     }
@@ -48,7 +56,8 @@ public final class CommandTest {
         Session.set(SeasonAdapterTest.rigged(false));
         var out = all(run(helper, "rhworld contracts"));
         Session.set(null);
-        helper.assertTrue(out.contains("id=SHRINE label=unconditional grh=no"), "shrine line missing: " + out);
+        helper.assertTrue(out.contains("id=SHRINE label=unconditional grh=no kind=adapter, not an engine contract"), "shrine line missing: " + out);
+        helper.assertTrue(out.contains("id=HUBS ") && out.contains("id=DICE "), "hub and dice items missing: " + out);
         helper.assertTrue(out.contains("contract=RHW-C1 v1") && out.contains("contract=RHW-C3 v1"), "engine contracts missing: " + out);
         helper.assertTrue(out.contains("label=LEAN ref=LFunction_ne_zero_of_half_lt_re"), "lean chain missing: " + out);
         helper.assertTrue(out.contains("checked_by=recomputed.c1.trial_limit"), "hypotheses missing: " + out);
@@ -65,27 +74,54 @@ public final class CommandTest {
         Session.set(null);
         helper.assertTrue(out.contains("recomputed: c1 bits=1024 min_bits=1024 square=false probable_prime=false trial_limit=504100"), "c1: " + out);
         helper.assertTrue(out.contains("budget=503791 g2_witness=349"), "budget and witness: " + out);
-        helper.assertTrue(out.contains("recomputed: certificate world_id=" + s.worldId() + " verify=ok"), "certificate: " + out);
+        helper.assertTrue(out.contains("recomputed: certificate world_id=" + s.worldId() + " verify=ok, the engine rechecking its own certificate from n"), "certificate: " + out);
+        helper.assertTrue(out.contains("independent: rhworld verify " ) && out.contains("verify.certverify.verify"), "independent check: " + out);
+        try {
+            var file = helper.getLevel().getServer().getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
+                    .resolve("rhworld").resolve("world-" + s.worldId() + ".cert.json");
+            helper.assertValueEqual(java.nio.file.Files.readString(file), s.certificate(), "exported public certificate");
+        } catch (java.io.IOException e) {
+            helper.fail("no exported certificate " + e);
+        }
         helper.assertTrue(out.contains("by-theorem: G1 unchecked until reveal"), "g1: " + out);
         helper.assertFalse(out.contains("G1 verified"), "g1 claimed: " + out);
         helper.succeed();
     }
 
     @GameTest
-    public void revealRefusesEveryMalformedFactor(GameTestHelper helper) throws CommandSyntaxException {
+    public void revealRefusesEveryMalformedFactor(GameTestHelper helper) {
         var s = SeasonAdapterTest.rigged(false);
         Session.set(s);
+        var key = SeasonAdapterTest.riggedKey();
         var n = s.world().n();
+        var p = key.p().min(key.q());
+        var two = java.math.BigInteger.TWO;
         var bad = List.of("0", "1", n.subtract(java.math.BigInteger.ONE).toString(), n.toString(), n.add(java.math.BigInteger.ONE).toString(),
                 "-1", "007", "+5", "0x10", "abc", "2147483647", "-2147483648", "9223372036854775807", "-9223372036854775808",
-                "1".repeat(100000));
+                "1".repeat(100000), p.multiply(two).toString(), p.multiply(p).toString(), " " + p, p + " ",
+                p.toString().substring(0, 20) + " " + p.toString().substring(20));
         for (String arg : bad) {
-            var r = run(helper, "rhworld reveal " + arg);
-            String out = all(r);
-            helper.assertTrue(r.result() == 0 && out.startsWith("refused: "), "reveal " + arg.substring(0, Math.min(20, arg.length())) + " gave " + out);
-            helper.assertFalse(out.contains(n.toString()) || out.length() > 200, "reveal echoed too much for " + arg.substring(0, Math.min(20, arg.length())));
+            String out = all(tryRun(helper, "rhworld reveal " + arg));
+            String shown = arg.substring(0, Math.min(20, arg.length()));
+            helper.assertTrue(out.startsWith("refused: "), "reveal " + shown + " gave " + out);
+            helper.assertFalse(out.contains(n.toString()) || out.contains(key.p().toString()) || out.contains(key.q().toString())
+                    || out.length() > 300, "reveal echoed too much for " + shown);
         }
+        helper.assertValueEqual(all(tryRun(helper, "rhworld reveal " + p.multiply(two))), "refused: revealed factor does not divide n",
+                "engine string for a non divisor");
         Session.set(null);
+        helper.succeed();
+    }
+
+    @GameTest
+    public void revealOfTheLargerFactorIsCanonicalised(GameTestHelper helper) {
+        var s = SeasonAdapterTest.rigged(false);
+        Session.set(s);
+        var key = SeasonAdapterTest.riggedKey();
+        String out = all(tryRun(helper, "rhworld reveal " + key.p().max(key.q())));
+        Session.set(null);
+        helper.assertTrue(out.contains("reveal accepted") && out.contains("world_id=" + s.worldId()), "larger factor gave " + out);
+        helper.assertFalse(out.contains(key.p().toString()) || out.contains(key.q().toString()), "factor echoed");
         helper.succeed();
     }
 
@@ -98,6 +134,9 @@ public final class CommandTest {
         Session.set(null);
         helper.assertTrue(out.contains("reveal accepted rank=2"), "reveal gave " + out);
         helper.assertTrue(out.contains("world_id=" + s.worldId()), "reveal world id: " + out);
+        var file = helper.getLevel().getServer().getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
+                .resolve("rhworld").resolve("revealed-" + s.worldId() + ".cert.json");
+        helper.assertTrue(java.nio.file.Files.exists(file) && out.contains("certificate=" + file.getFileName()), "revealed certificate file: " + out);
         helper.assertFalse(out.contains(SeasonAdapterTest.riggedKey().q().toString()), "reveal printed the cofactor");
         helper.succeed();
     }
