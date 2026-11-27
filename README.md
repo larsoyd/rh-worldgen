@@ -18,7 +18,7 @@ published bound (Lamzouri, Li and Soundararajan 2015, Theorem 1.1), the primes u
 the bit length of `n` reach every state of both layers, for **every** key that passes the client checks and, for the
 hidden layer, the reveal check that `p` and `n/p` are distinct primes. In the game that means:
 
-- **No key can hide a realm.** A Wild Gate ride lands on the colour you asked for, and the hidden half is exactly
+- **No admissible key can hide a realm.** A Wild Gate ride lands on the colour you asked for, and the hidden half is exactly
   uniform given that colour. So the Warden can never honestly say "my key just never leads to Ember". A realm that
   stops appearing is evidence of cheating during the season: missing from `t` rides of its colour has probability
   `2^-t` under any admissible key.
