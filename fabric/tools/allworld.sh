@@ -37,5 +37,6 @@ step persist1 env RHWORLD_KEY="$rigged" timeout 900 "$here/worldtest.sh" persist
 step persist2 env RHWORLD_KEY="$rigged" RHWORLD_KEEP=1 timeout 900 "$here/worldtest.sh" persist2 rhworld:wild_rigged
 step order timeout 1900 "$here/ordertest.sh" rhworld:wild
 step leakscan-unit timeout 120 python3 -I "$here/test_leakscan.py"
+step provenance-unit timeout 300 python3 -I "$here/test_provenance.py"
 echo "[rhworld-all] verdict=$([ $fail = 0 ] && echo pass || echo fail) passed=$pass failed=$fail secs=$(( $(date +%s) - start ))"
 [ $fail = 0 ]

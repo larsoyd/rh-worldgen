@@ -34,8 +34,7 @@ spawn-protection=0
 sync-chunk-writes=true
 EOF
 
-rev=$(git -C "$here" rev-parse --short HEAD 2>/dev/null || echo unknown)
-dirty=$([ -z "$(git -C "$here" status --porcelain -- fabric engine mechanics 2>/dev/null)" ] && echo no || echo yes)
+provenance=$(bash "$here/fabric/tools/provenance.sh" "$here") || { echo "[rhworld-test] verdict=fail reason=\"$provenance\""; exit 2; }
 start=$(date +%s)
 setsid timeout "$limit" "$here/gradlew" -p "$here" :fabric:runWorldTest --no-daemon -q \
     "-Prhworld.worldtest=$scenario" "-Prhworld.order=${RHWORLD_ORDER:-0}" \
@@ -54,8 +53,8 @@ rc=$?
 secs=$(( $(date +%s) - start ))
 
 grep -a '\[rhworld' "$log" | sed 's/.*\]: //'
-[ -d "$run/world" ] && printf 'rev=%s dirty=%s scenario=%s level_type=%s seed=%s\n' "$rev" "$dirty" "$scenario" "$level_type" "$seed" >"$run/world/rhworld-provenance.txt"
-echo "[rhworld-test] provenance rev=$rev dirty=$dirty"
+[ -d "$run/world" ] && printf '%s scenario=%s level_type=%s seed=%s\n' "$provenance" "$scenario" "$level_type" "$seed" >"$run/world/rhworld-provenance.txt"
+echo "[rhworld-test] provenance $provenance"
 leak=0
 if [ -n "${RHWORLD_KEY:-}" ]; then
     scan=("$log")
