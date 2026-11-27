@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# usage: worldtest.sh <scenario> <level-type> [seed] [limit], env RHWORLD_KEY ORDER THREADS
+# usage: worldtest.sh <scenario> <level-type> [seed] [limit], env RHWORLD_KEY ORDER THREADS KEEP
 set -uo pipefail
 scenario=${1:?scenario}
 level_type=${2:?level type}
@@ -15,7 +15,8 @@ unset DISPLAY WAYLAND_DISPLAY
 [ "$(ulimit -c)" = 0 ] || { echo "[rhworld-test] verdict=fail reason=core-limit-not-zero"; exit 2; }
 
 mkdir -p "$run"
-rm -rf "$run/world" "$run/logs" "$run/crash-reports" "$run/config/rhworld"
+[ -n "${RHWORLD_KEEP:-}" ] || rm -rf "$run/world"
+rm -rf "$run/logs" "$run/crash-reports" "$run/config/rhworld"
 if [ -n "${RHWORLD_KEY:-}" ]; then
     [ -f "$RHWORLD_KEY" ] || { echo "[rhworld-test] verdict=fail reason=key-file-missing"; exit 2; }
     mkdir -p "$run/config/rhworld"

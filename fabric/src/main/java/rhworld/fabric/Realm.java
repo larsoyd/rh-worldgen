@@ -22,6 +22,11 @@ public enum Realm implements StringRepresentable {
         return valueOf(realm.name());
     }
 
+    public static Realm byDimension(ResourceKey<Level> dimension) {
+        for (Realm r : values()) if (r.dimension().equals(dimension)) return r;
+        return null;
+    }
+
     public rhworld.mechanics.Realm mechanics() {
         return rhworld.mechanics.Realm.valueOf(name());
     }
