@@ -92,6 +92,8 @@ class Replay(unittest.TestCase):
             (lambda g: g["rides"][0].update(reported="mist" if g["rides"][0]["reported"] in ("hearth", "ember") else "hearth"),
              "ride 0 reported"),
             (lambda g: g.update(format="rhworld.rides/2"), "format"),
+            (lambda g: g["rides"][0].update(opening=g["rides"][0]["opening"].upper()), "ride 0 opening"),
+            (lambda g: g.update(commitment=g["commitment"].upper()), "commitment"),
         ]
         for tamper, reason in cases:
             log = copy.deepcopy(base)

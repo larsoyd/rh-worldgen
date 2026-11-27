@@ -1,5 +1,6 @@
 import functools
 import hashlib
+import re
 
 from verify import certcheck
 from verify.gate_bench import primes_upto
@@ -7,6 +8,7 @@ from verify.reveal import Refused, kronecker_odd
 
 REALMS = {(1, 1): "hearth", (-1, -1): "ember", (1, -1): "mist", (-1, 1): "frost"}
 CUSTODY = {"player": "met", "server-held": "not_met"}
+HEX64 = re.compile(r"[0-9a-f]{64}")
 COLOUR = {"hearth": "warm", "ember": "warm", "mist": "cold", "frost": "cold"}
 
 
@@ -50,13 +52,15 @@ def replay(raw, p=None):
     need(log.get("format") == "rhworld.rides/1", "format")
     need(log.get("dice") in CUSTODY, "dice")
     n = int(log["n"])
+    need(HEX64.fullmatch(log.get("commitment", "")), "commitment")
     link = bytes.fromhex(log["commitment"])
     x = 1
     for i, r in enumerate(log["rides"]):
         need(r.get("index") == i, f"ride {i} index")
         need(int(r["before"]) == x, f"ride {i} before")
+        need(HEX64.fullmatch(r.get("opening", "")), f"ride {i} opening")
         opening = bytes.fromhex(r["opening"])
-        need(len(opening) == 32 and hashlib.sha256(opening).digest() == link, f"ride {i} opening")
+        need(hashlib.sha256(opening).digest() == link, f"ride {i} opening")
         need(r["colour"] in ("warm", "cold"), f"ride {i} colour")
         need(int(r["after"]) == ride(n, x, opening, i, r["colour"]), f"ride {i} after")
         need(COLOUR.get(r["reported"]) == r["colour"], f"ride {i} reported")
