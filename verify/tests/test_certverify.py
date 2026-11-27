@@ -135,6 +135,21 @@ class Basis(unittest.TestCase):
             self.assertEqual(basis([p, q], 500)["primes"], kept, (p, q))
 
 
+class Trial(unittest.TestCase):
+    def test_layer_with_a_small_factor_is_refused(self):
+        from verify.certverify import check_layers
+        p607 = 2 ** 607 - 1
+        self.assertEqual(check_layers([p607 * (2 ** 521 - 1)], "recomputed.c3"), certcheck.budget(1128))
+        with self.assertRaises(Refused) as cm:
+            check_layers([p607 * 503], "deferred.reveal.c3_hidden")
+        self.assertEqual(str(cm.exception), "refused: bad field deferred.reveal.c3_hidden.trial_limit")
+
+    def test_bound_follows_the_lcm(self):
+        from verify.certverify import check_layers
+        a, b = 2 ** 521 - 1, 2 ** 607 - 1
+        self.assertEqual(check_layers([a, b], "x"), certcheck.budget((a * b).bit_length()))
+
+
 class Proved(unittest.TestCase):
     def test_proofs_decide_status(self):
         cert = load("rigged-1024-revealed.json")

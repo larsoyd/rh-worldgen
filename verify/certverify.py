@@ -73,7 +73,14 @@ def check_c1(n, c1, b):
     check_witness(c1.get("g2"), n, b, "recomputed.c1.g2")
 
 
+def check_layers(layers, field):
+    b = certcheck.budget(math.lcm(*layers).bit_length())
+    need(all(m % l for m in layers for l in primes_upto(b)), f"{field}.trial_limit")
+    return b
+
+
 def check_c3(c3, layers, b, field):
+    need(check_layers(layers, field) == b, f"{field}.bound")
     need(c3.get("bound") == b, f"{field}.bound")
     need(c3.get("trial_limit") == b, f"{field}.trial_limit")
     need(c3.get("primes_tested") == len(primes_upto(b)), f"{field}.primes_tested")
