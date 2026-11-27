@@ -11,8 +11,8 @@ from PIL import Image
 from rhworld.arith import jacobi
 from rhworld.fog import side
 from rhworld.gm import make_gm
-from rhworld.__main__ import G1_MARK, G2_MARK
-from rhworld.world import CLASSES, MARK_RADIUS, PLAYER, class_map, layer, render_gm, render_player, tile, zoom
+from rhworld.__main__ import G1_MARK, G1_RADIUS, G2_MARK, G2_RADIUS
+from rhworld.world import CLASSES, PLAYER, class_map, layer, render_gm, render_player, tile, zoom
 
 
 def run(*args):
@@ -60,15 +60,21 @@ class Render(unittest.TestCase):
 
     def test_mark_outlines_tile_without_covering_it(self):
         v = np.ones((21, 21), dtype=np.int8)
-        px = np.asarray(render_player(v, marks=[(tile(10, 10, 21), (255, 0, 0))]))
+        px = np.asarray(render_player(v, marks=[(tile(10, 10, 21), (255, 0, 0), 3)]))
         self.assertEqual(tuple(px[10, 10]), PLAYER[0].rgb)
         self.assertEqual(tuple(px[7, 10]), (255, 0, 0))
         self.assertEqual(tuple(px[0, 0]), PLAYER[0].rgb)
         self.assertEqual(int((px == (255, 0, 0)).all(axis=2).sum()), 24)
 
+    def test_two_marks_on_one_tile_both_show(self):
+        v = np.ones((21, 21), dtype=np.int8)
+        px = np.asarray(render_player(v, marks=[(tile(10, 10, 21), (255, 0, 0), 3), (tile(10, 10, 21), (0, 0, 255), 5)]))
+        self.assertEqual(tuple(px[7, 10]), (255, 0, 0))
+        self.assertEqual(tuple(px[5, 10]), (0, 0, 255))
+
     def test_mark_at_map_edge_keeps_tile_visible(self):
         v = np.ones((21, 21), dtype=np.int8)
-        px = np.asarray(render_player(v, marks=[(2, (255, 0, 0))]))
+        px = np.asarray(render_player(v, marks=[(2, (255, 0, 0), 3)]))
         self.assertEqual(tuple(px[0, 1]), PLAYER[0].rgb)
         self.assertEqual(tuple(px[3, 1]), (255, 0, 0))
         self.assertEqual(tuple(px[0, 4]), (255, 0, 0))
@@ -142,9 +148,9 @@ class Cli(unittest.TestCase):
         palette = np.array([c.rgb for c in CLASSES], dtype=np.uint8)
         rows, cols = np.indices((s, s))
         ring = np.zeros((s, s), dtype=bool)
-        for x in (rep["g1_p"], rep["g2"]):
+        for x, radius in ((rep["g1_p"], G1_RADIUS), (rep["g2"], G2_RADIUS)):
             r, c = divmod(x - 1, s)
-            ring |= np.maximum(abs(rows - r), abs(cols - c)) == MARK_RADIUS
+            ring |= np.maximum(abs(rows - r), abs(cols - c)) == radius
         self.assertTrue((px[~ring] == palette[want][~ring]).all())
         self.assertTrue(np.isin(px[ring].tolist(), [G1_MARK, G2_MARK]).all())
         counts = want.ravel().tolist()

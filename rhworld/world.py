@@ -18,7 +18,6 @@ CLASSES = (
     Terrain("deep water", (24, 60, 130)),
 )
 PLAYER = (Terrain("land", (176, 168, 140)), Terrain("water", (96, 120, 150)))
-MARK_RADIUS = 3
 
 
 def tile(row, col, s):
@@ -37,9 +36,9 @@ def class_map(v, h):
 def paint(index, palette, marks):
     rgb = np.array([t.rgb for t in palette], dtype=np.uint8)[index]
     rows, cols = np.indices(index.shape)
-    for x, colour in marks:
+    for x, colour, radius in marks:
         r, c = divmod(x - 1, index.shape[1])
-        rgb[np.maximum(abs(rows - r), abs(cols - c)) == MARK_RADIUS] = colour
+        rgb[np.maximum(abs(rows - r), abs(cols - c)) == radius] = colour
     return Image.fromarray(rgb)
 
 

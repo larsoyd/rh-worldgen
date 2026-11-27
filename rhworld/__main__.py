@@ -9,7 +9,9 @@ from rhworld.gm import make_gm
 from rhworld.world import CLASSES, class_map, layer, render_gm, render_player, zoom
 
 G1_MARK = (220, 30, 30)
+G1_RADIUS = 3
 G2_MARK = (250, 210, 0)
+G2_RADIUS = 5
 
 
 def log(tag, **fields):
@@ -34,7 +36,7 @@ def public_part(n, out):
     log("control", hash_chain_index=chain)
     out.mkdir(parents=True, exist_ok=True)
     v = layer(n, s)
-    img = render_player(v, [(g2, G2_MARK)])
+    img = render_player(v, [(g2, G2_MARK, G2_RADIUS)])
     img.save(out / "player.png")
     zoom(img, g2).save(out / "player_zoom.png")
     return {"n_bits": n.bit_length(), "budget": b, "side": s, "g2": g2, "hash_chain_index": chain}, v
@@ -50,7 +52,7 @@ def world(args):
     g1p, g1q = g1_witness(p, n), g1_witness(q, n)
     log("g1", witness_p=g1p, witness_q=g1q, budget=report["budget"])
     h = layer(p, report["side"])
-    img = render_gm(v, h, [(g1p, G1_MARK), (report["g2"], G2_MARK)])
+    img = render_gm(v, h, [(g1p, G1_MARK, G1_RADIUS), (report["g2"], G2_MARK, G2_RADIUS)])
     img.save(out / "gm.png")
     zoom(img, g1p).save(out / "gm_zoom.png")
     counts = class_map(v, h).ravel().tolist()
