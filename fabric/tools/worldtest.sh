@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # usage: worldtest.sh <scenario> <level-type> [seed] [limit-seconds]
+# RHWORLD_KEY=<gm key json> installs an operator key and scans logs and saves for its factors
 set -uo pipefail
 scenario=${1:?scenario}
 level_type=${2:?level type}
@@ -15,7 +16,12 @@ unset DISPLAY WAYLAND_DISPLAY
 [ "$(ulimit -c)" = 0 ] || { echo "[rhworld-test] verdict=fail reason=core-limit-not-zero"; exit 2; }
 
 mkdir -p "$run"
-rm -rf "$run/world"
+rm -rf "$run/world" "$run/logs" "$run/crash-reports" "$run/config/rhworld"
+if [ -n "${RHWORLD_KEY:-}" ]; then
+    [ -f "$RHWORLD_KEY" ] || { echo "[rhworld-test] verdict=fail reason=key-file-missing"; exit 2; }
+    mkdir -p "$run/config/rhworld"
+    cp "$RHWORLD_KEY" "$run/config/rhworld/key.json"
+fi
 printf 'eula=true\n' >"$run/eula.txt"
 port=$((25600 + RANDOM % 2000))
 cat >"$run/server.properties" <<EOF
@@ -45,6 +51,13 @@ rc=$?
 secs=$(( $(date +%s) - start ))
 
 grep -a '\[rhworld' "$log" | sed 's/.*\]: //'
+leak=0
+if [ -n "${RHWORLD_KEY:-}" ]; then
+    scan=("$log")
+    for d in world logs crash-reports; do [ -e "$run/$d" ] && scan+=("$run/$d"); done
+    timeout 300 python3 -I "$here/fabric/tools/leakscan.py" "$RHWORLD_KEY" "${scan[@]}" || leak=1
+fi
+[ $leak = 0 ] || { echo "[rhworld-test] verdict=fail reason=factor-leak scenario=$scenario"; exit 1; }
 if [[ $scenario == refuse-* ]]; then
     want="refused: ${scenario#refuse-}"
     want=${want//-/ }
