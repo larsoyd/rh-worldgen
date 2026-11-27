@@ -33,6 +33,7 @@ public final class RhWorldMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTING.register(LoadGuard::check);
         ServerPlayerEvents.AFTER_RESPAWN.register(Lifecycle::afterRespawn);
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> Lifecycle.join(handler.player));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> PlayerData.release(handler.player));
         CommandRegistrationCallback.EVENT.register((dispatcher, registries, env) -> RhCommands.register(dispatcher));
     }
 }

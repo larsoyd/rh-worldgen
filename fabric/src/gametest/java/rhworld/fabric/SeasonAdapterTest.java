@@ -88,4 +88,21 @@ public final class SeasonAdapterTest {
         helper.assertValueEqual(RideCore.ride(player, Colour.WARM).refusal().orElse(""), RideCore.NO_SESSION, "no session");
         helper.succeed();
     }
+
+    @GameTest
+    public void ridesStayLiveUntilThePlayerIsSaved(GameTestHelper helper) {
+        var s = rigged(true);
+        Session.set(s);
+        var player = helper.makeMockServerPlayerInLevel();
+        PlayerData.state(player, s.season().orElseThrow());
+        for (int i = 0; i < 3; i++) helper.assertTrue(RideCore.ride(player, Colour.WARM).ride().isPresent(), "ride " + i);
+        var stored = s.season().get().restore(player.getAttached(PlayerData.STATE));
+        helper.assertValueEqual(stored.log().size(), 0, "a ride must not rewrite the stored log");
+        player.saveWithoutId(net.minecraft.world.level.storage.TagValueOutput.createWithContext(
+                net.minecraft.util.ProblemReporter.DISCARDING, helper.getLevel().registryAccess()));
+        var flushed = s.season().get().restore(player.getAttached(PlayerData.STATE));
+        helper.assertValueEqual(flushed.log().size(), 3, "saving the player writes the live log");
+        Session.set(null);
+        helper.succeed();
+    }
 }
