@@ -122,6 +122,30 @@ class CliTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void benchWritesOneReportWithMachineInfoAndTheInputHash() throws Exception {
+        Path f = dir.resolve("moduli.json");
+        String input = "[{\"label\":\"a\",\"n\":\"" + golden(0).get("n") + "\"},{\"label\":\"b\",\"n\":\"15\"}]";
+        Files.writeString(f, input);
+        Path report = dir.resolve("out").resolve("report.json");
+        Run b = run("bench", "--moduli", f.toString(), "--repeat", "1", "--report", report.toString());
+        assertEquals(0, b.code(), b.err());
+        Map<String, Object> m = (Map<String, Object>) Json.parse(Files.readString(report).strip());
+        assertEquals("rhworld.bench/1", m.get("schema"));
+        assertEquals(java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                .digest(input.getBytes(StandardCharsets.UTF_8))), m.get("moduli_sha256"));
+        assertEquals(BigInteger.ONE, m.get("repeat"));
+        assertEquals(2, ((List<Object>) m.get("rows")).size());
+        Map<String, Object> machine = (Map<String, Object>) m.get("machine");
+        for (String k : List.of("os_name", "os_arch", "os_version", "cpu_model", "processors", "java_version", "java_vendor", "vm_name", "max_heap_mb")) {
+            assertTrue(machine.containsKey(k), k + " in " + machine);
+        }
+        assertEquals(BigInteger.valueOf(Runtime.getRuntime().availableProcessors()), machine.get("processors"));
+        assertEquals("min over repeats, microseconds, wall clock", m.get("timing"));
+        assertTrue(b.lastErr().startsWith("[bench] report=") && b.lastErr().contains("rows=2"), b.lastErr());
+    }
+
+    @Test
     void benchReportsEveryModulus() throws IOException {
         Path f = dir.resolve("moduli.json");
         Files.writeString(f, "[{\"label\":\"a\",\"n\":\"" + golden(0).get("n") + "\",\"p\":\"" + factor(0) + "\"},{\"label\":\"b\",\"n\":\""

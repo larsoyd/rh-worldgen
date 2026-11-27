@@ -32,9 +32,13 @@ public final class C1 {
     private C1() {}
 
     public static Verdict<Admission> admit(BigInteger n, Telemetry t) {
+        return admit(n, MIN_BITS, t);
+    }
+
+    static Verdict<Admission> admit(BigInteger n, int minBits, Telemetry t) {
         long start = System.nanoTime();
         int bits = n.bitLength();
-        Verdict<Admission> v = check(n, bits);
+        Verdict<Admission> v = check(n, bits, minBits);
         switch (v) {
             case Verdict.Ok<Admission> ok -> t.event("c1.admit", "bits", bits, "budget", ok.value().budget(), "trial_limit",
                     ok.value().trialLimit(), "primes_tested", ok.value().primesTested(), "us", (System.nanoTime() - start) / 1000);
@@ -43,8 +47,8 @@ public final class C1 {
         return v;
     }
 
-    private static Verdict<Admission> check(BigInteger n, int bits) {
-        if (!n.testBit(0) || n.signum() <= 0 || bits < MIN_BITS) return new Verdict.Refused<>("modulus too small or even");
+    private static Verdict<Admission> check(BigInteger n, int bits, int minBits) {
+        if (!n.testBit(0) || n.signum() <= 0 || bits < minBits) return new Verdict.Refused<>("modulus too small or even");
         if (Arith.isPerfectSquare(n)) return new Verdict.Refused<>("jacobi character is principal");
         if (Arith.isProbablePrime(n)) return new Verdict.Refused<>("no hidden layer");
         long budget = Budget.forBits(bits), side = Budget.side(bits);
