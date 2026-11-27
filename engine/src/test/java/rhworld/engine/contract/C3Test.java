@@ -152,7 +152,7 @@ class C3Test {
         assertEquals("refused: modulus too small or even", C3.basis(List.of(BigInteger.ONE), Telemetry.NONE).toString());
         assertEquals("refused: dependent layers", C3.basis(List.of(p, q.multiply(q)), Telemetry.NONE).toString());
         assertEquals("refused: small factor", C3.basis(List.of(p, q.multiply(BigInteger.valueOf(7))), Telemetry.NONE).toString());
-        assertEquals("refused: modulus too small or even", C3.basis(List.of(BigInteger.valueOf(2999)), Telemetry.NONE).toString());
+        assertEquals("refused: lcm below 3000", C3.basis(List.of(BigInteger.valueOf(2999)), Telemetry.NONE).toString());
     }
 
     @Test

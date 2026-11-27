@@ -96,7 +96,7 @@ public final class C3 {
         }
         BigInteger lcm = BigInteger.ONE;
         for (BigInteger n : layers) lcm = lcm.divide(lcm.gcd(n)).multiply(n);
-        if (lcm.compareTo(BigInteger.valueOf(3000)) < 0) return new Verdict.Refused<>("modulus too small or even");
+        if (lcm.compareTo(BigInteger.valueOf(3000)) < 0) return new Verdict.Refused<>("lcm below 3000");
         long bound = Budget.forBits(lcm.bitLength());
         for (BigInteger n : layers) if (Arith.leastFactor(n, bound).isPresent()) return new Verdict.Refused<>("small factor");
         return new Verdict.Ok<>(bound);
