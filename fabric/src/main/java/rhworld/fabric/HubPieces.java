@@ -9,6 +9,7 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.StructurePiece;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
@@ -16,6 +17,7 @@ import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSeriali
 public final class HubPieces {
     public static final int PAD = 9;
     public static final int HEADROOM = 6;
+    public static final int FOUNDATION = 24;
     public static final int GATE_X = 6;
 
     private HubPieces() {}
@@ -24,7 +26,7 @@ public final class HubPieces {
         final int ox, oy, oz;
 
         Base(net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType type, int x, int y, int z, int r) {
-            super(type, 0, new BoundingBox(x - r, y - 1, z - r, x + r, y + HEADROOM, z + r));
+            super(type, 0, new BoundingBox(x - r, y - FOUNDATION, z - r, x + r, y + HEADROOM, z + r));
             ox = x;
             oy = y;
             oz = z;
@@ -49,9 +51,14 @@ public final class HubPieces {
             if (chunkBox.isInside(pos)) level.setBlock(pos, state, 2);
         }
 
-        void pad(WorldGenLevel level, BoundingBox chunkBox, int r) {
+        // foundation depth comes from the noise alone so chunk order cannot change it
+        void pad(WorldGenLevel level, ChunkGenerator generator, BoundingBox chunkBox, int r) {
+            var noise = level.getLevel().getChunkSource().randomState();
             for (int x = ox - r; x <= ox + r; x++) for (int z = oz - r; z <= oz + r; z++) {
-                put(level, chunkBox, x, oy - 1, z, RhBlocks.HUB_STONE.defaultBlockState());
+                int floor = generator.getBaseHeight(x, z, Heightmap.Types.OCEAN_FLOOR_WG, level, noise);
+                for (int y = Math.max(floor, oy - FOUNDATION); y <= oy - 1; y++) {
+                    put(level, chunkBox, x, y, z, RhBlocks.HUB_STONE.defaultBlockState());
+                }
                 for (int y = oy; y <= oy + HEADROOM; y++) put(level, chunkBox, x, y, z, Blocks.AIR.defaultBlockState());
             }
         }
@@ -73,7 +80,7 @@ public final class HubPieces {
         @Override
         public void postProcess(WorldGenLevel level, StructureManager structures, ChunkGenerator generator,
                 RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos origin) {
-            pad(level, chunkBox, PAD);
+            pad(level, generator, chunkBox, PAD);
             gate(level, chunkBox, ox - GATE_X, RhBlocks.GATE_WARM.defaultBlockState());
             gate(level, chunkBox, ox + GATE_X, RhBlocks.GATE_COLD.defaultBlockState());
             put(level, chunkBox, ox, oy, oz + GATE_X, RhBlocks.SIGIL.defaultBlockState());
@@ -113,7 +120,7 @@ public final class HubPieces {
         @Override
         public void postProcess(WorldGenLevel level, StructureManager structures, ChunkGenerator generator,
                 RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos origin) {
-            pad(level, chunkBox, 1);
+            pad(level, generator, chunkBox, 1);
             put(level, chunkBox, ox, oy, oz, RhBlocks.SHRINE.defaultBlockState().setValue(ShrineBlock.PRIME_INDEX, index));
         }
     }

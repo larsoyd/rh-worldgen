@@ -91,6 +91,8 @@ final class WorldScenarios {
             ctx.report().check(inside.shrinePrimes.equals(want) && inside.shrines == 25, "hub_shrines",
                     "level=" + id + " shrines=" + inside.shrines + " distinct=" + inside.shrinePrimes.size());
             var pieces = start.getPieces().stream().map(net.minecraft.world.level.levelgen.structure.StructurePiece::getBoundingBox).toList();
+            int foreign = foreignStarts(level, HubStructure.CLEAR_CHUNKS);
+            ctx.report().check(foreign == 0, "no_vanilla_structures_near_hub", "level=" + id + " radius=" + HubStructure.CLEAR_CHUNKS + " found=" + foreign);
             int stray = strayBlocks(level, pieces, 8);
             ctx.report().check(stray == 0, "nothing_outside_hub", "level=" + id + " chunks=17x17 found=" + stray);
         }
@@ -142,5 +144,19 @@ final class WorldScenarios {
             }
         }
         return stray;
+    }
+
+    static int foreignStarts(ServerLevel level, int radius) {
+        int found = 0;
+        for (int cx = -radius; cx <= radius; cx++) for (int cz = -radius; cz <= radius; cz++) {
+            var chunk = level.getChunk(cx, cz, net.minecraft.world.level.chunk.status.ChunkStatus.STRUCTURE_STARTS, true);
+            for (var e : chunk.getAllStarts().entrySet()) {
+                if (!e.getValue().isValid() || e.getKey() instanceof HubStructure) continue;
+                found++;
+                System.out.println("[rhworld-test] foreign_start level=" + level.dimension().identifier() + " cx=" + cx + " cz=" + cz
+                        + " structure=" + level.registryAccess().lookupOrThrow(Registries.STRUCTURE).getKey(e.getKey()));
+            }
+        }
+        return found;
     }
 }
