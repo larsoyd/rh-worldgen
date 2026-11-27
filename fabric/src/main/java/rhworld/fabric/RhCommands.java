@@ -123,7 +123,9 @@ public final class RhCommands {
         var dir = src.getServer().getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).resolve("rhworld").normalize();
         try {
             java.nio.file.Files.createDirectories(dir);
-            return java.nio.file.Files.writeString(dir.resolve(name), json).normalize();
+            var file = dir.resolve(name).normalize();
+            if (!java.nio.file.Files.exists(file) || !java.nio.file.Files.readString(file).equals(json)) java.nio.file.Files.writeString(file, json);
+            return file;
         } catch (java.io.IOException e) {
             throw new IllegalStateException("refused: cannot write " + name);
         }
