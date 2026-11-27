@@ -1,31 +1,44 @@
 package rhworld.fabric;
 
-import java.math.BigInteger;
 import java.util.Optional;
+import net.minecraft.world.entity.player.Player;
 import rhworld.mechanics.Colour;
-import rhworld.mechanics.Dice;
 import rhworld.mechanics.Ride;
+import rhworld.mechanics.Season;
 
 public final class RideCore {
+    public static final String NO_SESSION = "refused: this world has no rhworld session";
     public static final String NO_KEY = "refused: no operator key on this server";
-    public static final String NO_SEED = "refused: no dice seed, set one with /rhworld dice <64 hex digits>";
 
-    public record Outcome(Optional<Ride> ride, Optional<String> refusal) {
+    public record Outcome(Optional<Ride> ride, Optional<String> refusal, Optional<Season.Player> state) {
         static Outcome refused(String reason) {
-            return new Outcome(Optional.empty(), Optional.of(reason));
+            return new Outcome(Optional.empty(), Optional.of(reason), Optional.empty());
         }
     }
 
     private RideCore() {}
 
-    public static Outcome ride(Session s, BigInteger x, Colour colour, byte[] seed, long index) {
-        if (s.warden().isEmpty()) return Outcome.refused(NO_KEY);
-        if (seed == null) return Outcome.refused(NO_SEED);
+    // rides a fresh copy and saves it, so a refused ride leaves the stored state as it was
+    public static Outcome ride(Player p, Colour colour) {
+        var out = attempt(p, colour);
+        out.state().ifPresent(s -> {
+            PlayerData.save(p, s);
+            PlayerData.used(p);
+        });
+        return out;
+    }
+
+    static Outcome attempt(Player p, Colour colour) {
+        var session = Session.current();
+        if (session.isEmpty()) return Outcome.refused(NO_SESSION);
+        if (session.get().season().isEmpty()) return Outcome.refused(NO_KEY);
+        var season = session.get().season().get();
         try {
-            long[] e = Dice.bits(seed, index, s.gate().size());
-            BigInteger after = s.gate().ride(x, colour, e);
-            var realm = s.warden().get().realm(after);
-            return new Outcome(Optional.of(new Ride(index, colour, x, after, realm)), Optional.empty());
+            var state = PlayerData.state(p, season);
+            String opening = PlayerData.opening(p, state);
+            if (opening.startsWith("refused:")) return Outcome.refused(opening);
+            Ride ride = season.ride(state, colour, opening);
+            return new Outcome(Optional.of(ride), Optional.empty(), Optional.of(state));
         } catch (IllegalArgumentException | IllegalStateException e) {
             String m = String.valueOf(e.getMessage());
             return Outcome.refused(m.startsWith("refused:") ? m : "refused: " + m);

@@ -6,8 +6,9 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HexFormat;
+import java.util.Optional;
 import java.util.List;
 import java.util.function.BiFunction;
 import net.minecraft.commands.CommandSourceStack;
@@ -15,11 +16,13 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import rhworld.engine.arith.Arith;
-import rhworld.engine.arith.Budget;
+import rhworld.engine.cert.Certificate;
+import rhworld.engine.world.GmWorld;
 import rhworld.mechanics.Audit;
 import rhworld.mechanics.Colour;
-import rhworld.mechanics.Warden;
+import rhworld.mechanics.Custody;
+import rhworld.mechanics.Replay;
+import rhworld.mechanics.Season;
 
 public final class RhCommands {
     static final DynamicCommandExceptionType UNKNOWN_REALM =
@@ -31,7 +34,7 @@ public final class RhCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         var root = Commands.literal("rhworld");
         root.then(Commands.literal("inspect").executes(ctx -> run(ctx, "inspect", RhCommands::inspect)));
-        root.then(Commands.literal("contracts").executes(ctx -> run(ctx, "contracts", (src, s) -> contracts())));
+        root.then(Commands.literal("contracts").executes(ctx -> run(ctx, "contracts", RhCommands::contracts)));
         root.then(Commands.literal("verify").executes(ctx -> run(ctx, "verify", (src, s) -> verify(s))));
         root.then(Commands.literal("neighbours").executes(ctx -> run(ctx, "neighbours", RhCommands::neighbours)));
         root.then(Commands.literal("resources").executes(ctx -> run(ctx, "resources", RhCommands::resources)));
@@ -45,8 +48,11 @@ public final class RhCommands {
                     Realm target = realm(StringArgumentType.getString(ctx, "realm"));
                     return run(ctx, "route", (src, s) -> route(src, target));
                 })));
-        root.then(Commands.literal("dice").then(Commands.argument("hex", StringArgumentType.word())
-                .executes(ctx -> run(ctx, "dice", (src, s) -> dice(src, StringArgumentType.getString(ctx, "hex"))))));
+        root.then(Commands.literal("log").executes(ctx -> run(ctx, "log", RhCommands::log)));
+        root.then(Commands.literal("commit").then(Commands.argument("hex", StringArgumentType.word())
+                .executes(ctx -> run(ctx, "commit", (src, s) -> one(PlayerData.commit(player(src), StringArgumentType.getString(ctx, "hex")))))));
+        root.then(Commands.literal("open").then(Commands.argument("hex", StringArgumentType.word())
+                .executes(ctx -> run(ctx, "open", (src, s) -> one(PlayerData.queue(player(src), StringArgumentType.getString(ctx, "hex")))))));
         root.then(Commands.literal("reveal").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .then(Commands.argument("p", StringArgumentType.word())
                         .executes(ctx -> run(ctx, "reveal", (src, s) -> reveal(src, s, StringArgumentType.getString(ctx, "p"))))));
@@ -62,7 +68,7 @@ public final class RhCommands {
         var session = Session.current();
         List<String> lines;
         try {
-            lines = session.isEmpty() ? List.of(GateHandler.NO_SESSION) : body.apply(ctx.getSource(), session.get());
+            lines = session.isEmpty() ? List.of(RideCore.NO_SESSION) : body.apply(ctx.getSource(), session.get());
         } catch (IllegalArgumentException | IllegalStateException e) {
             String m = String.valueOf(e.getMessage());
             lines = List.of(m.startsWith("refused:") ? m : "refused: " + m);
@@ -80,29 +86,45 @@ public final class RhCommands {
         return p;
     }
 
-    static List<String> inspect(CommandSourceStack src, Session s) {
-        var p = player(src);
-        BigInteger x = PlayerState.attunement(p);
-        var log = PlayerState.rides(p, s.n());
-        return List.of("x=" + x.toString(16) + " x_bits=" + x.bitLength()
-                + " public=" + Colour.ofJacobi(Arith.jacobi(x, s.n())).name().toLowerCase()
-                + " dimension=" + p.level().dimension().identifier()
-                + " rides=" + log.rides().size() + " sigils=" + PlayerState.concord(p).sigils().size());
+    static Season season(Session s) {
+        return s.season().orElseThrow(() -> new IllegalStateException(RideCore.NO_KEY));
     }
 
-    static List<String> contracts() {
-        return Contracts.ALL.stream().map(Contracts.Contract::line).toList();
+    static List<String> one(String line) {
+        return List.of(line);
+    }
+
+    static List<String> inspect(CommandSourceStack src, Session s) {
+        var p = player(src);
+        var state = PlayerData.state(p, season(s));
+        BigInteger x = state.attunement();
+        return List.of("x=" + x.toString(16) + " x_bits=" + x.bitLength()
+                + " public=" + Colour.ofJacobi(s.world().jacobi(x)).name().toLowerCase()
+                + " dimension=" + p.level().dimension().identifier()
+                + " rides=" + state.log().rides().size() + " sigils=" + state.concord().sigils().size()
+                + " dice=" + state.log().custody().label());
+    }
+
+    static List<String> contracts(CommandSourceStack src, Session s) {
+        var lines = new ArrayList<String>();
+        lines.add("world_id=" + s.worldId() + " certificate=rhworld.cert/1");
+        Contracts.ALL.forEach(c -> lines.add(c.line()));
+        if (src.getEntity() instanceof ServerPlayer p && s.season().isPresent()
+                && PlayerData.state(p, s.season().get()).log().custody() == Custody.SERVER) {
+            lines.add("player=" + p.getScoreboardName() + " dice=server-held condition8=not_met, the server knows your future dice");
+        }
+        return lines;
     }
 
     static List<String> verify(Session s) {
-        int k = s.n().bitLength();
-        long budget = Budget.forBits(k);
-        var small = Arith.leastFactor(s.n(), budget);
+        var w = s.world();
+        var a = w.admission();
+        String cert = Certificate.verify(s.certificate(), Session.TELEMETRY) instanceof rhworld.engine.contract.Verdict.Ok<?> ? "ok" : "refused";
         return List.of(
-                "recomputed: bits=" + k + " budget=" + budget + " gate_primes=" + s.gate().size() + " witness=" + s.gate().witness(),
-                "recomputed: odd=" + yes(s.n().testBit(0)) + " square=" + yes(Arith.isPerfectSquare(s.n()))
-                        + " probable_prime=" + yes(Arith.isProbablePrime(s.n())) + " small_factor=" + (small.isPresent() ? "found" : "none"),
-                "by-theorem: G2 bound w <= B holds for every n passing the checks, here observed w=" + s.gate().witness(),
+                "recomputed: bits=" + w.bits() + " budget=" + w.budget() + " gate_primes=" + w.primes().size() + " witness=" + w.g2().value(),
+                "recomputed: admission=ok trial_limit=" + a.trialLimit() + " primes_tested=" + a.primesTested(),
+                "recomputed: certificate world_id=" + s.worldId() + " verify=" + cert,
+                "by-theorem: G2 bound w <= B holds for every n passing the checks, here observed w=" + w.g2().value(),
                 "by-theorem: G1 unchecked until reveal");
     }
 
@@ -116,8 +138,8 @@ public final class RhCommands {
                 .filter(piece -> piece instanceof HubPieces.Shrine)
                 .map(piece -> (HubPieces.Shrine) piece)
                 .filter(sh -> sh.origin().distSqr(p.blockPosition()) <= 64 * 64)
-                .map(sh -> "shrine l=" + ShrineBlock.PRIMES[sh.index] + " at=" + sh.origin().toShortString()
-                        + " distance=" + (int) Math.sqrt(sh.origin().distSqr(p.blockPosition())) + " label=unconditional")
+                .map(sh -> "shrine l=" + ShrineBlock.PRIMES[sh.index()] + " at=" + sh.origin().toShortString()
+                        + " distance=" + (int) Math.sqrt(sh.origin().distSqr(p.blockPosition())) + " inert in this version")
                 .toList();
     }
 
@@ -140,30 +162,29 @@ public final class RhCommands {
     }
 
     static List<String> audit(CommandSourceStack src, Session s) {
-        var v = Audit.of(PlayerState.rides(player(src), s.n()), AUDIT_THRESHOLD);
-        return List.of(v.line());
+        var log = PlayerData.state(player(src), season(s)).log();
+        return List.of(Audit.of(log, AUDIT_THRESHOLD).line());
     }
 
-    static List<String> dice(CommandSourceStack src, String hex) {
-        if (hex.length() != 64 || !hex.chars().allMatch(c -> Character.digit(c, 16) >= 0)) {
-            return List.of("refused: dice seed must be exactly 64 hex digits");
-        }
-        PlayerState.setSeed(player(src), HexFormat.of().parseHex(hex));
-        return List.of("dice seed set, rides from now on use it");
+    static List<String> log(CommandSourceStack src, Session s) {
+        var log = PlayerData.state(player(src), season(s)).log();
+        String replay = Replay.check(log).orElse("ok");
+        return List.of("[log] rides=" + log.rides().size() + " dice=" + log.custody().label() + " replay=" + replay, log.toJson());
     }
 
     static List<String> reveal(CommandSourceStack src, Session s, String arg) {
-        BigInteger p = strictFactor(arg, s.n());
+        BigInteger p = strictFactor(arg, s.world().n());
         if (p == null) return List.of("refused: p is not a nontrivial factor of n");
-        Warden warden = new Warden(p, s.n().divide(p));
-        var lines = new java.util.ArrayList<String>();
+        var gm = GmWorld.reveal(s.world(), p, Optional.empty(), Session.TELEMETRY);
+        if (!(gm instanceof rhworld.engine.contract.Verdict.Ok<GmWorld> ok)) return List.of(gm.toString());
+        var lines = new ArrayList<String>();
         for (ServerPlayer player : src.getServer().getPlayerList().getPlayers()) {
-            var log = PlayerState.rides(player, s.n());
-            var first = Audit.replay(warden, log);
-            lines.add("player=" + player.getScoreboardName() + " rides=" + log.rides().size()
-                    + (first.isPresent() ? " first_false_report=" + first.getAsLong() : " all_reports_true"));
+            if (s.season().isEmpty()) break;
+            var log = PlayerData.state(player, s.season().get()).log();
+            lines.add("player=" + player.getScoreboardName() + " rides=" + log.rides().size() + " dice=" + log.custody().label()
+                    + " public_replay=" + Replay.check(log).orElse("ok") + " replay_against_key=pending");
         }
-        lines.add("reveal accepted rank=" + warden.rank(s.gate().primes()));
+        lines.add("reveal accepted rank=" + ok.value().hiddenBasis().rank() + " factors=" + ok.value().factorsStatus());
         return lines;
     }
 

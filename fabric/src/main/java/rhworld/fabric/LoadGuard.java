@@ -4,9 +4,9 @@ import java.math.BigInteger;
 import java.util.HashSet;
 import java.util.Optional;
 import net.fabricmc.loader.api.FabricLoader;
-import rhworld.mechanics.Warden;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.MinecraftServer;
+import rhworld.engine.contract.Verdict;
 
 public final class LoadGuard {
     private LoadGuard() {}
@@ -18,27 +18,31 @@ public final class LoadGuard {
         for (var entry : stems.entrySet()) {
             if (!(entry.getValue().generator() instanceof HybridGenerator gen)) continue;
             String verdict = gen.keyVerdict();
-            if (!verdict.equals("ok")) {
-                Log.line("load", "level", entry.getKey().identifier(), "result", verdict);
-                return Optional.of(verdict);
-            }
+            if (!verdict.equals("ok")) return refuse(verdict, "level", entry.getKey().identifier());
             moduli.add(gen.modulus().orElseThrow());
         }
         if (moduli.isEmpty()) return Optional.empty();
-        String key = OperatorKey.load(keyFile(), moduli);
-        Log.line("load", "realms", moduli.size(), "operator_key", OperatorKey.current().isPresent(), "result", key);
-        if (!key.equals("ok")) return Optional.of(key);
-        try {
-            var warden = OperatorKey.current().map(k -> new Warden(k.p(), k.q()));
-            var session = Session.create(moduli.iterator().next(), warden);
-            Session.set(session);
-            Log.line("session", "bits", session.n().bitLength(), "gate_primes", session.gate().size(), "witness", session.gate().witness());
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            String m = String.valueOf(e.getMessage());
-            Log.line("load", "result", m);
-            return Optional.of(m.startsWith("refused:") ? m : "refused: " + m);
+        if (moduli.size() > 1) return refuse("refused: realms disagree on the modulus", "realms", moduli.size());
+        var key = OperatorKey.read(keyFile());
+        if (key.refusal().isPresent()) return refuse(key.refusal().get(), "key_file", true);
+        long start = System.nanoTime();
+        var opened = Session.open(moduli.iterator().next(), key.factors());
+        if (opened instanceof Verdict.Ok<Session> ok) {
+            Session.set(ok.value());
+            Log.line("load", "bits", ok.value().world().bits(), "world_id", ok.value().worldId(),
+                    "operator_key", ok.value().season().isPresent(), "ms", (System.nanoTime() - start) / 1_000_000, "result", "ok");
+            return Optional.empty();
         }
-        return Optional.empty();
+        return refuse(opened.toString(), "operator_key", key.factors().isPresent());
+    }
+
+    static Optional<String> refuse(String reason, Object... kv) {
+        var fields = new Object[kv.length + 2];
+        System.arraycopy(kv, 0, fields, 0, kv.length);
+        fields[kv.length] = "result";
+        fields[kv.length + 1] = reason;
+        Log.line("load", fields);
+        return Optional.of(reason);
     }
 
     static java.nio.file.Path keyFile() {

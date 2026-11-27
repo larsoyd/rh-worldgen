@@ -3,6 +3,6 @@
   "id": "rhworld-test",
   "version": "0",
   "environment": "*",
-  "entrypoints": {"main": ["rhworld.fabric.WorldTestHook"], "fabric-client-gametest": ["rhworld.fabric.RealPlayerClientTest"], "fabric-gametest": ["rhworld.fabric.GeneratorCodecTest", "rhworld.fabric.PresetTest", "rhworld.fabric.CommandTest", "rhworld.fabric.RideCoreTest"]},
+  "entrypoints": {"main": ["rhworld.fabric.WorldTestHook"], "fabric-client-gametest": ["rhworld.fabric.RealPlayerClientTest"], "fabric-gametest": ["rhworld.fabric.GeneratorCodecTest", "rhworld.fabric.PresetTest", "rhworld.fabric.CommandTest", "rhworld.fabric.SeasonAdapterTest"]},
   "depends": {"rhworld": "*"}
 }

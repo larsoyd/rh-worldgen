@@ -25,7 +25,7 @@ public final class RhWorldMod implements ModInitializer {
     public void onInitialize() {
         Registry.register(BuiltInRegistries.CHUNK_GENERATOR, id("hybrid"), HybridGenerator.CODEC);
         RhBlocks.init();
-        PlayerState.init();
+        PlayerData.init();
         Registry.register(BuiltInRegistries.STRUCTURE_TYPE, id("hub"), HUB_TYPE);
         Registry.register(BuiltInRegistries.STRUCTURE_PIECE, id("hub"), HUB_PIECE);
         Registry.register(BuiltInRegistries.STRUCTURE_PIECE, id("shrine"), SHRINE_PIECE);

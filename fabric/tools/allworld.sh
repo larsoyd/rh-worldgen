@@ -25,7 +25,7 @@ step vanilla timeout 900 "$here/worldtest.sh" vanilla minecraft:normal
 step hubs timeout 900 "$here/worldtest.sh" hubs rhworld:wild
 step hubs-vanilla timeout 900 "$here/worldtest.sh" hubs minecraft:normal
 step no-modulus timeout 900 "$here/worldtest.sh" refuse-no-modulus rhworld-test:unkeyed
-step key-mismatch env RHWORLD_KEY="$random" timeout 900 "$here/worldtest.sh" refuse-key-file-mismatch rhworld:wild_rigged
+step key-mismatch env RHWORLD_KEY="$random" timeout 900 "$here/worldtest.sh" refuse-factors-do-not-multiply-to-n rhworld:wild_rigged
 step rides env RHWORLD_KEY="$rigged" timeout 900 "$here/worldtest.sh" rides rhworld:wild_rigged
 step concord env RHWORLD_KEY="$rigged" timeout 900 "$here/worldtest.sh" concord rhworld:wild_rigged
 step persist1 env RHWORLD_KEY="$rigged" timeout 900 "$here/worldtest.sh" persist1 rhworld:wild_rigged

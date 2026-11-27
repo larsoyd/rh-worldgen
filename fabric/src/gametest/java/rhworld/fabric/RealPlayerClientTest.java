@@ -26,10 +26,7 @@ public final class RealPlayerClientTest implements FabricClientGameTest {
             sp.getConnection().waitForChunksRender();
             String result = sp.getServer().computeOnServer(server -> {
                 ServerPlayer player = server.getPlayerList().getPlayers().getFirst();
-                check(Session.current().flatMap(Session::warden).isPresent(), "session_with_key", "");
-                byte[] seed = new byte[32];
-                seed[0] = 7;
-                PlayerState.setSeed(player, seed);
+                check(Session.current().flatMap(Session::season).isPresent(), "session_with_key", "");
                 var claimed = EnumSet.noneOf(Realm.class);
                 int rides = 0;
                 while (claimed.size() < 4 && rides < 200) {
