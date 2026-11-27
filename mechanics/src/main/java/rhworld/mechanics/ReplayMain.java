@@ -7,7 +7,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 import rhworld.engine.telemetry.Telemetry;
 
-public final class ReplayMain {
+final class ReplayMain {
     static final String USAGE = "usage: rhworld replay --log <file> [--telemetry lines|json]";
     private static final double THRESHOLD = 0x1p-30;
 

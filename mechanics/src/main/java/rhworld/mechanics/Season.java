@@ -45,7 +45,7 @@ public final class Season {
     private final Warden warden;
     private final WildGate gate;
 
-    public Season(Warden warden) {
+    Season(Warden warden) {
         this.warden = warden;
         this.gate = WildGate.forModulus(warden.modulus());
     }

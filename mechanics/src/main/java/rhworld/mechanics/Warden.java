@@ -3,12 +3,12 @@ package rhworld.mechanics;
 import java.math.BigInteger;
 import rhworld.engine.arith.Arith;
 
-public final class Warden {
+final class Warden {
     private final BigInteger p;
     private final BigInteger q;
     private final BigInteger n;
 
-    public Warden(BigInteger p, BigInteger q) {
+    Warden(BigInteger p, BigInteger q) {
         if (p.equals(q)) throw new IllegalArgumentException("refused: key factors are equal");
         if (!p.testBit(0) || !q.testBit(0) || !Arith.isProbablePrime(p) || !Arith.isProbablePrime(q))
             throw new IllegalArgumentException("refused: key factor not an odd prime");
@@ -25,7 +25,7 @@ public final class Warden {
         return q;
     }
 
-    public BigInteger modulus() {
+    BigInteger modulus() {
         return n;
     }
 

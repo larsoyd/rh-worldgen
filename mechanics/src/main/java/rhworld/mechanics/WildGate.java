@@ -33,7 +33,7 @@ public final class WildGate {
         return new WildGate(world.n(), world.primes());
     }
 
-    public static WildGate forModulus(BigInteger n) {
+    static WildGate forModulus(BigInteger n) {
         return new WildGate(n, PrimeTable.upTo(Budget.forBits(n.bitLength())));
     }
 
