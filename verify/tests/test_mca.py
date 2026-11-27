@@ -118,6 +118,28 @@ class Decode(unittest.TestCase):
         self.assertEqual(mca.shrine_mismatches(swapped, pieces), [(1, [2])])
         self.assertEqual(mca.shrine_mismatches(good[:2], pieces), [(2, [])])
 
+    def test_ring_positions_use_java_rounding(self):
+        self.assertEqual(mca.ring_position(0), (48, 0))
+        self.assertEqual(mca.java_round(-2.5), -2)
+        self.assertEqual(mca.java_round(2.5), 3)
+        self.assertEqual(len({mca.ring_position(i) for i in range(25)}), 25)
+
+    def test_hub_layout(self):
+        oy = 70
+        good = ([(-6, oy + dy, dz, "rhworld:gate_warm") for dy in (1, 2, 3) for dz in (-1, 0, 1)]
+                + [(6, oy + dy, dz, "rhworld:gate_cold") for dy in (1, 2, 3) for dz in (-1, 0, 1)]
+                + [(0, oy, 6, "rhworld:sigil"), (0, oy - 1, 0, "rhworld:hub_stone")]
+                + [(*mca.ring_position(i)[:1], 65, mca.ring_position(i)[1], f"rhworld:shrine[prime_index={i}]")
+                   for i in range(25)])
+        good = [(x, y, z, st) for x, y, z, st in good]
+        self.assertEqual(mca.layout_errors(good), [])
+        moved = [b if b[3] != "rhworld:sigil" else (1, oy, 6, b[3]) for b in good]
+        self.assertEqual(mca.layout_errors(moved), ["sigil at [(1, 70, 6)]"])
+        swapped = [(-x, y, z, st) if "gate" in st else (x, y, z, st) for x, y, z, st in good]
+        self.assertEqual(mca.layout_errors(swapped)[:1], ["gate_warm at x != -6"])
+        shifted = [(x + 1, y, z, st) if st.endswith("prime_index=3]") else (x, y, z, st) for x, y, z, st in good]
+        self.assertEqual(mca.layout_errors(shifted), ["shrine 3 at (36, 33) expected (35, 33)"])
+
     def test_absent_chunk_is_skipped(self):
         self.assertEqual(list(mca.read_region(bytes(8192))), [])
 

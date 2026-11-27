@@ -1,5 +1,6 @@
 import gzip
 import hashlib
+import math
 import re
 import struct
 import sys
@@ -138,6 +139,37 @@ def shrine_mismatches(blocks, pieces):
     return out
 
 
+def java_round(v):
+    return math.floor(v + 0.5)
+
+
+def ring_position(i, radius=48, count=25):
+    a = 2 * math.pi * i / count
+    return java_round(radius * math.cos(a)), java_round(radius * math.sin(a))
+
+
+def layout_errors(blocks):
+    errors = []
+    pad = [y for x, y, z, st in blocks if st == "rhworld:hub_stone" and abs(x) <= 9 and abs(z) <= 9]
+    oy = min(pad) + 1 if pad else None
+    frame = {(dy, dz) for dy in (1, 2, 3) for dz in (-1, 0, 1)}
+    for name, gx in (("gate_warm", -6), ("gate_cold", 6)):
+        gate = [(x, y, z) for x, y, z, st in blocks if st == f"rhworld:{name}"]
+        if any(x != gx for x, _, _ in gate):
+            errors.append(f"{name} at x != {gx}")
+        elif oy is None or sorted((y - oy, z) for _, y, z in gate) != sorted(frame):
+            errors.append(f"{name} frame wrong")
+    sigil = [(x, y, z) for x, y, z, st in blocks if st == "rhworld:sigil"]
+    if sigil != [(0, oy, 6)]:
+        errors.append(f"sigil at {sigil}")
+    for x, _, z, st in blocks:
+        if st.startswith("rhworld:shrine"):
+            i = int(st.split("prime_index=")[1].rstrip("]"))
+            if (x, z) != ring_position(i):
+                errors.append(f"shrine {i} at ({x}, {z}) expected {ring_position(i)}")
+    return errors
+
+
 def chunk_hash(blocks):
     lines = sorted(f"{x} {y} {z} {s}\n" for x, y, z, s in blocks)
     return hashlib.sha256("".join(lines).encode()).hexdigest()
@@ -166,7 +198,8 @@ def world_hashes(world):
                     out[(level, chunk["xPos"], chunk["zPos"])] = (len(blocks), chunk_hash(blocks))
                 else:
                     empty += 1
-        placement[level] = (len(outside(every, [p["BB"] for p in pieces])), shrine_mismatches(every, pieces))
+        placement[level] = (len(outside(every, [p["BB"] for p in pieces])), shrine_mismatches(every, pieces),
+                            layout_errors(every))
     return out, empty, placement
 
 
@@ -177,15 +210,16 @@ def dump_hashes(log):
 
 def main(world, log):
     mine, empty, placement = world_hashes(world)
-    for level, (loose, wrong) in placement.items():
-        print(f"[mca] level={level} blocks_outside_pieces={loose} shrine_mismatches={len(wrong)} first={wrong[:4]}")
+    for level, (loose, wrong, layout) in placement.items():
+        print(f"[mca] level={level} blocks_outside_pieces={loose} shrine_mismatches={len(wrong)} first={wrong[:4]} "
+              f"layout_errors={len(layout)} first_layout={layout[:2]}")
     theirs = dump_hashes(log)
     missing = sorted(set(theirs) - set(mine))
     extra = sorted(set(mine) - set(theirs))
     differ = sorted(k for k in set(mine) & set(theirs) if mine[k] != theirs[k])
     for k in (missing + extra + differ)[:10]:
         print(f"[mca] mismatch level={k[0]} cx={k[1]} cz={k[2]} mine={mine.get(k)} dump={theirs.get(k)}")
-    ok = not (missing or extra or differ) and theirs and not any(a or b for a, b in placement.values())
+    ok = not (missing or extra or differ) and theirs and not any(any(v) for v in placement.values())
     print(f"[mca] verdict={'pass' if ok else 'fail'} chunks_with_blocks={len(mine)} dumped={len(theirs)} "
           f"missing={len(missing)} extra={len(extra)} differ={len(differ)} empty_chunks={empty}")
     return 0 if ok else 1
