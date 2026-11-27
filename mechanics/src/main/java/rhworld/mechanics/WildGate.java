@@ -6,6 +6,7 @@ import rhworld.engine.arith.Budget;
 import rhworld.engine.arith.OddModulus;
 import rhworld.engine.arith.PrimeTable;
 import rhworld.engine.contract.Verdict;
+import rhworld.engine.world.PublicWorld;
 
 public final class WildGate {
     private final BigInteger n;
@@ -26,6 +27,10 @@ public final class WildGate {
             }
         }
         this.witness = w;
+    }
+
+    public static WildGate of(PublicWorld world) {
+        return new WildGate(world.n(), world.primes());
     }
 
     public static WildGate forModulus(BigInteger n) {

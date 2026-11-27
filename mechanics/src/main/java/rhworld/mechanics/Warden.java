@@ -17,6 +17,14 @@ public final class Warden {
         this.n = p.multiply(q);
     }
 
+    BigInteger p() {
+        return p;
+    }
+
+    BigInteger q() {
+        return q;
+    }
+
     public BigInteger modulus() {
         return n;
     }
