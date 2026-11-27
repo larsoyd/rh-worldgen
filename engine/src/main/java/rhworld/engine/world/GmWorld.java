@@ -18,10 +18,13 @@ public final class GmWorld {
     private final PublicWorld world;
     private final BigInteger p, q;
     private final String factorsStatus;
+    private final Optional<Proofs> proofs;
     private final Witness g1p, g1q;
     private final C3.Basis hiddenBasis;
 
-    private GmWorld(PublicWorld world, BigInteger p, BigInteger q, String status, Witness g1p, Witness g1q, C3.Basis basis) {
+    private GmWorld(PublicWorld world, BigInteger p, BigInteger q, String status, Optional<Proofs> proofs, Witness g1p, Witness g1q,
+            C3.Basis basis) {
+        this.proofs = proofs;
         this.world = world;
         this.p = p;
         this.q = q;
@@ -56,7 +59,7 @@ public final class GmWorld {
         }
         String s = status;
         return C1.g1(w.admission(), p, t).then(a -> C1.g1(w.admission(), q, t)
-                .then(b -> C3.basis(List.of(p, q), t).map(basis -> new GmWorld(w, p, q, s, a, b, basis))));
+                .then(b -> C3.basis(List.of(p, q), t).map(basis -> new GmWorld(w, p, q, s, proofs, a, b, basis))));
     }
 
     public PublicWorld world() {
@@ -73,6 +76,10 @@ public final class GmWorld {
 
     public String factorsStatus() {
         return factorsStatus;
+    }
+
+    public Optional<Proofs> proofs() {
+        return proofs;
     }
 
     public Witness g1p() {
