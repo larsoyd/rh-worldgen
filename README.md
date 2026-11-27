@@ -19,15 +19,16 @@ The GM chooses `n` and could try to rig it. For example, a GM could choose `n` s
 everywhere near spawn, which would make the fog hide nothing. The generator refuses any `n` that fails its checks.
 For every `n` that passes them, GRH guarantees the following.
 
-> **G1.** Some tile `x < B(n)` has `(x/p) = -1`, and some tile `y < B(n)` has `(y/q) = -1`. Tile 1 always has
+> **G1.** Some tile `x <= B(n)` has `(x/p) = -1`, and some tile `y <= B(n)` has `(y/q) = -1`. Tile 1 always has
 > `(1/p) = +1`, so the hidden layer is never constant on the spawn patch.
 >
-> **G2.** Some tile `x < B(n)` has `(x/n) = -1`. The smallest such tile is a canonical public landmark, and every
+> **G2.** Some tile `x <= B(n)` has `(x/n) = -1`. The smallest such tile is a canonical public landmark, and every
 > player can find it in at most `B(n)` steps.
 
-Here `B(n) = floor(2 (ln n)^2)`. This is about 1,007,000 for a 1024-bit `n`, and the spawn patch side is `S = 1004`.
-The budget is fixed from `n` alone before any scanning. If a scan ever ran past it, the generator would return
-`refused: budget exceeded`. Under GRH that cannot happen.
+Here `B(n) = floor((k ln 2)^2)`, where `k` is the bit length of `n`. It is at least `floor((ln n)^2)` for every `n` of
+that length, and it is public before `n` exists. For `k = 1024`, `B = 503,791` and the spawn patch side is
+`S = ceil(sqrt(B)) = 710`. For `k = 2048`, `B = 2,015,165` and `S = 1420`. The budget is fixed before any scanning.
+If a scan ever ran past it, the generator would return `refused: budget exceeded`. Under GRH that cannot happen.
 
 ## How this uses the proof
 
@@ -35,25 +36,34 @@ The budget is fixed from `n` alone before any scanning. If a scan ever ran past 
    `DirichletLNonvanishingRightOfHalf` says: for every modulus `N` and every Dirichlet character `χ` mod `N`,
    `L(s, χ) ≠ 0` whenever `re s > 1/2` (apart from the pole of the trivial character at `s = 1`). This is GRH for
    Dirichlet L-functions, with no explicit constants.
-2. **Published, not machine-checked.** E. Bach, *Explicit bounds for primality testing and related problems*,
-   Math. Comp. 55 (1990), 355-380. Assuming GRH for the characters mod `n`, every proper subgroup of the units mod `n`
-   misses some positive integer below `2 (ln n)^2`. The constant 2 is quoted here as it appears in later literature
-   (e.g. Lamzouri, Li and Soundararajan, Math. Comp. 2015). Check it against Bach's paper before you rely on it.
-3. **Applied here.** The tiles where `(x/p) = +1` form a proper subgroup. So do the tiles where `(x/q) = +1`, and the
-   tiles where `(x/n) = +1` (this needs `n` not to be a square). Bach's bound says each subgroup misses a tile
-   below `B(n)`, and that missing tile is a witness with symbol -1. That gives G1 and G2.
+   The paper below needs GRH only for primitive characters, which the repository also states as
+   `LFunction_eq_zero_re_of_isPrimitive`.
+2. **Published, not machine-checked.** Y. Lamzouri, X. Li and K. Soundararajan, *Conditional bounds for the least
+   quadratic non-residue and related problems*, Math. Comp. 84 (2015), Theorem 1.1, part (2). Assume GRH, let
+   `q >= 3000`, and let `H` be a proper subgroup of the units mod `q`. If `q` has no prime factor below `(log q)^2`,
+   then some prime `l <= (log q)^2` is not in `H`. An older bound of the same kind, with constant 2, is E. Bach,
+   *Explicit bounds for primality testing and related problems*, Math. Comp. 55 (1990), 355-380. It is not used for
+   any number here.
+3. **Applied here,** with `q = n`. The client checks guarantee `n >= 3000` and that `n` has no prime factor up to
+   `B >= floor((ln n)^2)`. The tiles where `(x/p) = +1` form a proper subgroup. So do the tiles where `(x/q) = +1`, and
+   the tiles where `(x/n) = +1` (this needs `n` not to be a square). Each subgroup misses a prime `l <= (ln n)^2`. Since
+   `l` is an integer, `l <= floor((ln n)^2) <= B`, and that prime is a tile with symbol -1. That gives G1 and G2.
 
 Without GRH, the best proven bounds are Burgess-type powers of the modulus. For a 512-bit factor `p`, the least
 non-residue bound `p^(1/(4 sqrt e))` is about `e^54`, which is far larger than any map.
 
 ## Honest limits
 
-- **Existence only.** G1 promises at least one hidden -1 tile among about a million. A spawn patch that is almost
+- **Existence only.** G1 promises at least one hidden -1 tile among about half a million. A spawn patch that is almost
   uniform is still allowed. The guarantee is "the GM cannot make the fog empty", not "the fog is fair".
 - **The guarantee is loose.** The best rigging we know of (see `--rigged`) pushes the first hidden -1 tile to
-  about `ln p`. That is a few hundred tiles at these sizes, against a budget of about a million. For random 2048-bit
+  about `ln p`. That is a few hundred tiles at these sizes, against a budget of about half a million. For random 2048-bit
   `n`, the first visible -1 tile is usually below 20 (the largest seen in 5000 samples was 41). GRH protects the worst
   case. It does not shape the typical world.
+- **Rigging can also be stopped without GRH, by changing who picks the map.** Commit-reveal or jointly generated
+  randomness, with the map committed in a Merkle tree, gives hidden terrain that no dealer can rig, unconditionally.
+  This design is worth it only when the hidden layer must be multiplicative (so that players can deduce it, for example
+  from `(x/q) = (x/n)(x/p)`). In that case the dealer necessarily holds a trapdoor.
 - **Not the only way to get this.** An interactive protocol, where the GM proves in zero knowledge that a hidden -1
   tile exists below an agreed bound, gives the same promise without GRH. GRH's advantage is that it needs no
   communication and no trust in the GM. Likewise, a hash chain (first `i` with `(H(n, i)/n) = -1`) gives a canonical
@@ -68,7 +78,7 @@ non-residue bound `p^(1/(4 sqrt e))` is about `e^54`, which is far larger than a
 - **Checkable only at the reveal.** Players can confirm G1 only after the GM publishes `p`. By the theorem it always
   holds.
 - **The maps look like noise.** Jacobi symbols behave like coin flips, so the full maps look like static, and the
-  zoomed views are there to make individual tiles readable. Rigged worlds lean toward plains (about 40% instead of
+  zoomed views are there to make individual tiles readable. Rigged worlds lean toward plains (about 43% instead of
   25%), because every tile built from small numbers is forced to +1 in both factors.
 - **Tests cannot test GRH.** The test suite checks the guarantee on many random and rigged worlds, and on every
   two-prime world below 10^6 that passes the checks. Beyond that, the guarantee is the theorem chain above and nothing else.
@@ -82,9 +92,9 @@ The generator returns `refused: <reason>` and exit code 2, and writes no maps, w
 | `n` even or shorter than 1024 bits | `modulus too small or even` |
 | `n` a perfect square | `jacobi character is principal` |
 | `n` a probable prime | `no hidden layer` |
-| a prime factor of `n` at most `max(B, S^2)`, so that every tile is coprime to `n` | `small factor` |
+| a prime factor of `n` at most `max(B, S^2)` (this covers the theorem's hypothesis and makes every tile coprime to `n`) | `small factor` |
 | a key file whose `p q` is not `n` | `gm file factors do not match n` |
-| a witness scan passing `B(n)` | `budget exceeded` |
+| a witness scan passing `B(n)` without a -1 tile | `budget exceeded` |
 
 ## Map legend
 
@@ -131,6 +141,6 @@ generator. A real game needs factors from a cryptographic source.
 
 - **Random GM:** G1 witnesses 2 and 3, G2 witness 2.
 - **Rigged GM:** every prime up to 331 is a residue mod both factors. The witnesses are G1 = 349 and 359 and G2 = 349,
-  still far below `B = 1,006,466`.
+  still far below `B = 503,791`.
 
 These key files are public test data, not secrets.

@@ -1,15 +1,15 @@
 {
  "n_bits": 1024,
- "budget": 1006466,
- "side": 1004,
+ "budget": 503791,
+ "side": 710,
  "g2": 349,
  "hash_chain_index": 1,
  "g1_p": 349,
  "g1_q": 359,
  "tiles": {
-  "plains": 406069,
-  "forest": 201808,
-  "shallows": 204180,
-  "deep water": 195959
+  "plains": 219238,
+  "forest": 95153,
+  "shallows": 97243,
+  "deep water": 92466
  }
 }
