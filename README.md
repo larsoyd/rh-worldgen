@@ -34,30 +34,33 @@ If a scan ever ran past it, the generator would return `refused: budget exceeded
 
 1. **Machine-checked.** The Lean repository proves `LFunction_ne_zero_of_half_lt_re`, whose statement
    `DirichletLNonvanishingRightOfHalf` says: for every modulus `N` and every Dirichlet character `χ` mod `N`,
-   `L(s, χ) ≠ 0` whenever `re s > 1/2` (apart from the pole of the trivial character at `s = 1`). This is GRH for
+   `L(s, χ) ≠ 0` whenever `re s > 1/2` (the one excluded point is the principal character mod `N` at `s = 1`, where nothing is claimed). This is GRH for
    Dirichlet L-functions, with no explicit constants.
    The paper below needs GRH only for primitive characters, which the repository also states as
    `LFunction_eq_zero_re_of_isPrimitive`.
 2. **Published, not machine-checked.** Y. Lamzouri, X. Li and K. Soundararajan, *Conditional bounds for the least
    quadratic non-residue and related problems*, Math. Comp. 84 (2015), Theorem 1.1, part (2). Assume GRH, let
    `q >= 3000`, and let `H` be a proper subgroup of the units mod `q`. If `q` has no prime factor below `(log q)^2`,
-   then some prime `l <= (log q)^2` is not in `H`. An older bound of the same kind, with constant 2, is E. Bach,
-   *Explicit bounds for primality testing and related problems*, Math. Comp. 55 (1990), 355-380. It is not used for
-   any number here.
+   then some prime `l <= (log q)^2` is not in `H`. A 2017 corrigendum to the paper was not consulted here. The paper
+   says its fix touches only Theorems 1.2 and 1.3. Bach (1990) proved the first explicit bound of this kind. Its
+   constants are quoted in this paper and are not used here.
 3. **Applied here,** with `q = n`. The client checks guarantee `n >= 3000` and that `n` has no prime factor up to
-   `B >= floor((ln n)^2)`. The tiles where `(x/p) = +1` form a proper subgroup. So do the tiles where `(x/q) = +1`, and
-   the tiles where `(x/n) = +1` (this needs `n` not to be a square). Each subgroup misses a prime `l <= (ln n)^2`. Since
-   `l` is an integer, `l <= floor((ln n)^2) <= B`, and that prime is a tile with symbol -1. That gives G1 and G2.
+   `B >= floor((ln n)^2)`. This is the theorem's hypothesis, and it also makes every tile up to `B` coprime to `n`. The
+   residues mod `n` with `(x/p) = +1` form a proper subgroup of the units mod `n`. So do those with `(x/q) = +1`, and
+   those with `(x/n) = +1` (this needs `n` not to be a square). Each subgroup misses a prime `l <= (ln n)^2`. Since `l`
+   is an integer, `l <= floor((ln n)^2) <= B`, and tile `l` has symbol -1. That gives G1 and G2.
 
-Without GRH, the best proven bounds are Burgess-type powers of the modulus. For a 512-bit factor `p`, the least
-non-residue bound `p^(1/(4 sqrt e))` is about `e^54`, which is far larger than any map.
+Without GRH the best bounds are Burgess-type. Asymptotically the bound is `p^(1/(4 sqrt e) + eps)`, about `e^54` for a
+512-bit `p`, but its constants are not explicit. In fully explicit form it is about `p^(1/4) ln p`, roughly `e^95`.
+Both are far larger than any map.
 
 ## Honest limits
 
 - **Existence only.** G1 promises at least one hidden -1 tile among about half a million. A spawn patch that is almost
   uniform is still allowed. The guarantee is "the GM cannot make the fog empty", not "the fog is fair".
 - **The guarantee is loose.** The best rigging we know of (see `--rigged`) pushes the first hidden -1 tile to
-  about `ln p`. That is a few hundred tiles at these sizes, against a budget of about half a million. For random 2048-bit
+  about `ln p`. That is 349 in the rigged sample, against a budget of 503,791, about 1,400 times smaller. So in
+  practice GRH constrains nothing a GM can reach today. It forbids only a hypothetical, far stronger rigging. For random 2048-bit
   `n`, the first visible -1 tile is usually below 20 (the largest seen in 5000 samples was 41). GRH protects the worst
   case. It does not shape the typical world.
 - **Rigging can also be stopped without GRH, by changing who picks the map.** Commit-reveal or jointly generated
@@ -75,13 +78,18 @@ non-residue bound `p^(1/(4 sqrt e))` is about `e^54`, which is far larger than a
   with RH.
 - **Only part of the chain is machine-checked.** The Lean proof gives GRH without explicit constants. Bach's explicit
   constant is a published consequence and is not machine-checked here.
+- **Two-factor rigging shows. One-factor rigging does not.** Rigging both factors forces small tiles to `+1` in both,
+  so the player view gets excess land: 62% instead of 50%, which players can see from `n` alone. Rigging only `p`,
+  which is enough to attack G1 for `p`, leaves the player view balanced (measured 50.05% land, against 50.02% for a
+  random GM).
 - **Checkable only at the reveal.** Players can confirm G1 only after the GM publishes `p`. By the theorem it always
   holds.
-- **The maps look like noise.** Jacobi symbols behave like coin flips, so the full maps look like static, and the
-  zoomed views are there to make individual tiles readable. Rigged worlds lean toward plains (about 43% instead of
+- **The maps look like noise.** Neighbouring tiles are unrelated integers and Jacobi symbols behave like coin flips,
+  so the full maps look like static: a game board, not terrain. The zoomed views make individual tiles readable. The
+  prime ledger shows what actually decides the map. Rigged worlds lean toward plains (about 43% instead of
   25%), because every tile built from small numbers is forced to +1 in both factors.
 - **Tests cannot test GRH.** The test suite checks the guarantee on many random and rigged worlds, and on every
-  two-prime world below 10^6 that passes the checks. Beyond that, the guarantee is the theorem chain above and nothing else.
+  two-prime world `3000 <= n < 10^6` that passes the checks. Beyond that, the guarantee is the theorem chain above and nothing else.
 
 ## Client checks
 
@@ -112,8 +120,13 @@ The generator returns `refused: <reason>` and exit code 2, and writes no maps, w
 
 Rings mark landmarks. **Yellow** (radius 5) is the G2 witness: the first water tile, which players can see. **Red**
 (radius 3, GM view only) is the G1 witness: the first forest or deep-water tile. Witnesses usually sit in the top row,
-so their rings are clipped at the map edge. The terrain names and colours are flavour; only the four classes carry
+so their rings are clipped at the map edge. The terrain names and colours are flavour. Only the four classes carry
 meaning.
+
+**Prime ledger** (`ledger.png`, GM only): the primes `2, 3, 5, ...` in order, each coloured by its class. The symbols
+are multiplicative, so a tile's class follows from the classes of its prime factors, and the ledger decides the whole
+map. The least witness is always a prime. The red bar under the strip marks the G1 witness and the yellow bar marks
+the G2 witness. In the rigged sample the ledger is solid plains up to 331, then shows the bars at 349.
 
 ## Usage
 
@@ -127,8 +140,8 @@ python3 -m rhworld player --n <decimal n> --out out/                   # player 
 ./run_tests.sh                                                         # full suite, under a timeout
 ```
 
-`world` writes `player.png`, `gm.png`, 8x zooms around the witness (`player_zoom.png`, `gm_zoom.png`) and
-`report.json`. The report holds the bit length of `n`, `B`, `S`, the G1 witnesses for `p` and `q`, the G2 witness,
+`world` writes `player.png`, `gm.png`, 8x zooms around the witness (`player_zoom.png`, `gm_zoom.png`), the prime
+ledger `ledger.png` and `report.json`. The report holds the bit length of `n`, `B`, `S`, the G1 witnesses for `p` and `q`, the G2 witness,
 the hash-chain index and tile counts per class. It never includes `p` or `q`. The player view is byte-identical
 whether it comes from the key file or from `n` alone.
 
@@ -137,7 +150,7 @@ generator. A real game needs factors from a cryptographic source.
 
 ## Samples
 
-`samples/random-1024` and `samples/rigged-1024` each hold a key file, both maps, both zooms and a report.
+`samples/random-1024` and `samples/rigged-1024` each hold a key file, both maps, both zooms, the ledger and a report.
 
 - **Random GM:** G1 witnesses 2 and 3, G2 witness 2.
 - **Rigged GM:** every prime up to 331 is a residue mod both factors. The witnesses are G1 = 349 and 359 and G2 = 349,
