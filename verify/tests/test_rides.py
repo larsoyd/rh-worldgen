@@ -9,6 +9,7 @@ from verify.reveal import Refused
 P521 = 2 ** 521 - 1
 P607 = 2 ** 607 - 1
 N = P521 * P607
+RIGGED_P = 10957802876852201155672215302352628507521608880330895741617149658539884808739970157024141557953076930007030530001158353349257650473231183132518179819612521
 
 
 def chain(top, length):
@@ -38,8 +39,15 @@ class Golden(unittest.TestCase):
             out = rides.replay((DATA / name).read_bytes())
             self.assertEqual(out, {"rides": 8, "dice": "player", "condition8": "met"}, name)
 
-    def test_mersenne_reveal_with_canonical_factor(self):
+    def test_reveal_with_canonical_factor(self):
         self.assertEqual(rides.replay((DATA / "rides-mersenne.json").read_bytes(), P521)["rides"], 8)
+        self.assertEqual(rides.replay((DATA / "rides-rigged-1024.json").read_bytes(), RIGGED_P)["rides"], 8)
+
+    def test_golden_files_have_no_trailing_newline(self):
+        for name in ("rides-mersenne.json", "rides-rigged-1024.json", "rides-random-1024.json"):
+            self.assertFalse((DATA / name).read_bytes().endswith(b"\n"), name)
+        with self.assertRaises(Refused):
+            rides.replay((DATA / "rides-mersenne.json").read_bytes() + b"\n")
 
 
 class Dice(unittest.TestCase):
