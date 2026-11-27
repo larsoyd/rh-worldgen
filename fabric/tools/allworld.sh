@@ -25,12 +25,19 @@ step vanilla timeout 900 "$here/worldtest.sh" vanilla minecraft:normal
 step hubs timeout 900 "$here/worldtest.sh" hubs rhworld:wild
 step hubs-vanilla timeout 900 "$here/worldtest.sh" hubs minecraft:normal
 step no-modulus timeout 900 "$here/worldtest.sh" refuse-no-modulus rhworld-test:unkeyed
+step even timeout 900 "$here/worldtest.sh" refuse-modulus-too-small-or-even rhworld-test:bad_even
+step short timeout 900 "$here/worldtest.sh" refuse-modulus-too-small-or-even rhworld-test:bad_short
+step square timeout 900 "$here/worldtest.sh" refuse-jacobi-character-is-principal rhworld-test:bad_square
+step prime timeout 900 "$here/worldtest.sh" refuse-no-hidden-layer rhworld-test:bad_prime
+step small-factor timeout 900 "$here/worldtest.sh" refuse-small-factor rhworld-test:bad_small_factor
 step key-mismatch env RHWORLD_KEY="$random" timeout 900 "$here/worldtest.sh" refuse-factors-do-not-multiply-to-n rhworld:wild_rigged
 step rides env RHWORLD_KEY="$rigged" timeout 900 "$here/worldtest.sh" rides rhworld:wild_rigged
+step commands env RHWORLD_KEY="$rigged" timeout 900 "$here/worldtest.sh" commands rhworld:wild_rigged
 step concord env RHWORLD_KEY="$rigged" timeout 900 "$here/worldtest.sh" concord rhworld:wild_rigged
 step persist1 env RHWORLD_KEY="$rigged" timeout 900 "$here/worldtest.sh" persist1 rhworld:wild_rigged
 step persist2 env RHWORLD_KEY="$rigged" RHWORLD_KEEP=1 timeout 900 "$here/worldtest.sh" persist2 rhworld:wild_rigged
 step order timeout 1900 "$here/ordertest.sh" rhworld:wild
 step leakscan-unit timeout 120 python3 -I "$here/test_leakscan.py"
+step provenance-unit timeout 300 python3 -I "$here/test_provenance.py"
 echo "[rhworld-all] verdict=$([ $fail = 0 ] && echo pass || echo fail) passed=$pass failed=$fail secs=$(( $(date +%s) - start ))"
 [ $fail = 0 ]

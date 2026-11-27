@@ -55,7 +55,7 @@ loom {
             findProperty("rhworld.threads")?.let { vmArg("-Dmax.bg.threads=$it") }
             ideConfigGenerated(false)
         }
-        matching { it.name == "clientGameTest" }.configureEach {
+        matching { it.name in setOf("client", "server", "clientGameTest", "worldTest") }.configureEach {
             findProperty("rhworld.key")?.let { vmArg("-Drhworld.key=$it") }
         }
     }
