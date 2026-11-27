@@ -98,7 +98,8 @@ public final class RhCommands {
         var p = player(src);
         var state = PlayerData.state(p, season(s));
         BigInteger x = state.attunement();
-        return List.of("x=" + x.toString(16) + " x_bits=" + x.bitLength()
+        String hex = x.toString(16);
+        return List.of("x=" + (hex.length() > 16 ? hex.substring(0, 16) + "..." : hex) + " x_bits=" + x.bitLength()
                 + " public=" + Colour.ofJacobi(s.world().jacobi(x)).name().toLowerCase()
                 + " dimension=" + p.level().dimension().identifier()
                 + " rides=" + state.log().rides().size() + " sigils=" + state.concord().sigils().size()
@@ -118,10 +119,10 @@ public final class RhCommands {
     }
 
     static java.nio.file.Path export(CommandSourceStack src, String name, String json) {
-        var dir = src.getServer().getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).resolve("rhworld");
+        var dir = src.getServer().getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).resolve("rhworld").normalize();
         try {
             java.nio.file.Files.createDirectories(dir);
-            return java.nio.file.Files.writeString(dir.resolve(name), json);
+            return java.nio.file.Files.writeString(dir.resolve(name), json).normalize();
         } catch (java.io.IOException e) {
             throw new IllegalStateException("refused: cannot write " + name);
         }

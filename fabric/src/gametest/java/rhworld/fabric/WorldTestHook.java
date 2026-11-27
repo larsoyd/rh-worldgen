@@ -38,6 +38,7 @@ public final class WorldTestHook implements ModInitializer {
             case "hubs" -> WorldScenarios::hubs;
             case "hashdump" -> ChunkHashes::dump;
             case "rides" -> RideScenario::rides;
+            case "commands" -> CommandScenario::commands;
             case "concord" -> LifeScenario::concord;
             case "persist1" -> LifeScenario::persist1;
             case "persist2" -> LifeScenario::persist2;

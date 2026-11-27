@@ -32,6 +32,7 @@ step prime timeout 900 "$here/worldtest.sh" refuse-no-hidden-layer rhworld-test:
 step small-factor timeout 900 "$here/worldtest.sh" refuse-small-factor rhworld-test:bad_small_factor
 step key-mismatch env RHWORLD_KEY="$random" timeout 900 "$here/worldtest.sh" refuse-factors-do-not-multiply-to-n rhworld:wild_rigged
 step rides env RHWORLD_KEY="$rigged" timeout 900 "$here/worldtest.sh" rides rhworld:wild_rigged
+step commands env RHWORLD_KEY="$rigged" timeout 900 "$here/worldtest.sh" commands rhworld:wild_rigged
 step concord env RHWORLD_KEY="$rigged" timeout 900 "$here/worldtest.sh" concord rhworld:wild_rigged
 step persist1 env RHWORLD_KEY="$rigged" timeout 900 "$here/worldtest.sh" persist1 rhworld:wild_rigged
 step persist2 env RHWORLD_KEY="$rigged" RHWORLD_KEEP=1 timeout 900 "$here/worldtest.sh" persist2 rhworld:wild_rigged
