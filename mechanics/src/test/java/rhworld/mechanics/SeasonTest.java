@@ -21,14 +21,14 @@ class SeasonTest {
     }
 
     private static Season.Player play(SeedChain c, int rides) {
-        Season.Player p = SEASON.join(c.commitment());
+        Season.Player p = SEASON.join(c.commitment(), Custody.PLAYER);
         for (int r = 0; r < rides; r++) SEASON.ride(p, r % 3 == 0 ? Colour.COLD : Colour.WARM, c.opening(r));
         return p;
     }
 
     @Test
     void newPlayerStartsInHearth() {
-        Season.Player p = SEASON.join(chain(1).commitment());
+        Season.Player p = SEASON.join(chain(1).commitment(), Custody.PLAYER);
         assertEquals(BigInteger.ONE, p.attunement());
         assertEquals(Realm.HEARTH, SEASON.realm(p));
     }
@@ -36,7 +36,7 @@ class SeasonTest {
     @Test
     void ridesKeepTheRealmInvariant() {
         SeedChain c = chain(2);
-        Season.Player p = SEASON.join(c.commitment());
+        Season.Player p = SEASON.join(c.commitment(), Custody.PLAYER);
         for (int r = 0; r < 30; r++) {
             Colour colour = r % 3 == 0 ? Colour.COLD : Colour.WARM;
             Ride ride = SEASON.ride(p, colour, c.opening(r));
@@ -52,7 +52,7 @@ class SeasonTest {
     @Test
     void wrongOpeningIsRefusedAndChangesNothing() {
         SeedChain c = chain(3);
-        Season.Player p = SEASON.join(c.commitment());
+        Season.Player p = SEASON.join(c.commitment(), Custody.PLAYER);
         SEASON.ride(p, Colour.WARM, c.opening(0));
         BigInteger before = p.attunement();
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> SEASON.ride(p, Colour.WARM, c.opening(2)));
@@ -71,7 +71,7 @@ class SeasonTest {
     @Test
     void replayNamesAForgedArrival() {
         Season.Player p = play(chain(5), 10);
-        RideLog forged = new RideLog(p.log().modulus(), p.log().commitment());
+        RideLog forged = new RideLog(p.log().modulus(), p.log().commitment(), Custody.PLAYER);
         for (Ride r : p.log().rides()) {
             if (r.index() == 6) {
                 BigInteger fake = r.after().multiply(BigInteger.valueOf(4)).mod(SEASON.modulus());
@@ -86,7 +86,7 @@ class SeasonTest {
     @Test
     void replayNamesAReportOfTheWrongColour() {
         Season.Player p = play(chain(6), 4);
-        RideLog forged = new RideLog(p.log().modulus(), p.log().commitment());
+        RideLog forged = new RideLog(p.log().modulus(), p.log().commitment(), Custody.PLAYER);
         for (Ride r : p.log().rides()) {
             Realm shown = r.index() == 2 ? r.reported().plus(Realm.MIST) : r.reported();
             forged.add(new Ride(r.index(), r.colour(), r.opening(), r.before(), r.after(), shown));
@@ -97,7 +97,7 @@ class SeasonTest {
     @Test
     void sigilsAreCollectedInTheCurrentRealm() {
         SeedChain c = chain(7);
-        Season.Player p = SEASON.join(c.commitment());
+        Season.Player p = SEASON.join(c.commitment(), Custody.PLAYER);
         assertTrue(SEASON.collect(p));
         assertFalse(SEASON.collect(p));
         int r = 0;
@@ -121,6 +121,17 @@ class SeasonTest {
         assertEquals(p.toJson(), back.toJson());
         SEASON.ride(back, Colour.WARM, c.opening(5));
         assertEquals(6, back.log().rides().size());
+    }
+
+    @Test
+    void serverHeldDiceAreMarkedThroughRestoreAndAudit() {
+        SeedChain c = chain(10);
+        Season.Player p = SEASON.join(c.commitment(), Custody.SERVER);
+        for (int r = 0; r < 4; r++) SEASON.ride(p, Colour.WARM, c.opening(r));
+        Season.Player back = SEASON.restore(p.toJson());
+        assertEquals(Custody.SERVER, back.log().custody());
+        assertTrue(back.log().toJson().contains("\"dice\":\"server-held\""), back.log().toJson());
+        assertTrue(Audit.of(back.log(), 0x1p-30).line().endsWith(" dice=server-held condition8=not_met"));
     }
 
     @Test

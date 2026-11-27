@@ -11,13 +11,15 @@ import rhworld.engine.arith.Arith;
 
 public final class Audit {
     public record Verdict(Map<Colour, Integer> rides, Map<Realm, Integer> arrivals, int publicMismatches, Realm weakest,
-            double pValue, boolean accused) {
+            double pValue, boolean accused, Custody custody) {
         public String line() {
             StringBuilder s = new StringBuilder("[audit]");
             s.append(" rides_warm=").append(rides.get(Colour.WARM)).append(" rides_cold=").append(rides.get(Colour.COLD));
             for (Realm r : Realm.values()) s.append(' ').append(lower(r)).append('=').append(arrivals.get(r));
             s.append(" mismatches=").append(publicMismatches).append(" weakest=").append(lower(weakest));
             s.append(" p=").append(pValue).append(" verdict=").append(accused ? "accused" : "clear");
+            s.append(" dice=").append(custody.label());
+            if (custody == Custody.SERVER) s.append(" condition8=not_met");
             return s.toString();
         }
     }
@@ -47,7 +49,7 @@ public final class Audit {
             }
         }
         double p = Math.min(1, 4 * best);
-        return new Verdict(rides, arrivals, mismatches, weakest, p, mismatches > 0 || p <= threshold);
+        return new Verdict(rides, arrivals, mismatches, weakest, p, mismatches > 0 || p <= threshold, log.custody());
     }
 
     public static OptionalLong replay(Warden warden, RideLog log) {

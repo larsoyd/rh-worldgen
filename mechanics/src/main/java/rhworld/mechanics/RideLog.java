@@ -13,11 +13,17 @@ public final class RideLog {
 
     private final BigInteger n;
     private final String commitment;
+    private final Custody custody;
     private final List<Ride> rides = new ArrayList<>();
 
-    public RideLog(BigInteger n, String commitment) {
+    public RideLog(BigInteger n, String commitment, Custody custody) {
         this.n = n;
         this.commitment = commitment;
+        this.custody = custody;
+    }
+
+    public Custody custody() {
+        return custody;
     }
 
     public String commitment() {
@@ -59,7 +65,7 @@ public final class RideLog {
             m.put("reported", name(r.reported()));
             out.add(m);
         }
-        return Map.of("format", FORMAT, "n", n.toString(), "commitment", commitment, "rides", out);
+        return Map.of("format", FORMAT, "n", n.toString(), "commitment", commitment, "dice", custody.label(), "rides", out);
     }
 
     public static RideLog fromJson(String text) {
@@ -68,7 +74,8 @@ public final class RideLog {
 
     static RideLog fromMap(Map<?, ?> root) {
         if (!FORMAT.equals(root.get("format"))) throw new IllegalArgumentException("refused: unknown ride log format=" + root.get("format"));
-        RideLog log = new RideLog(new BigInteger((String) root.get("n")), (String) root.get("commitment"));
+        RideLog log = new RideLog(new BigInteger((String) root.get("n")), (String) root.get("commitment"),
+                Custody.ofLabel((String) root.get("dice")));
         for (Object o : (List<?>) root.get("rides")) {
             Map<?, ?> m = (Map<?, ?>) o;
             log.add(new Ride(((BigInteger) m.get("index")).longValueExact(),
