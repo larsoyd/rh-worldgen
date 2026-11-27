@@ -10,11 +10,12 @@ class Refused(Exception):
 
 
 def budget(n):
-    return math.floor(2 * math.log(n) ** 2)
+    # depends only on the bit length and is at least floor((ln n)^2) for every n of that length
+    return math.floor((n.bit_length() * math.log(2)) ** 2)
 
 
 def side(n):
-    return math.isqrt(budget(n) - 2) + 1
+    return math.isqrt(budget(n) - 1) + 1
 
 
 def check_modulus(n, min_bits=1024):
@@ -33,7 +34,7 @@ def check_modulus(n, min_bits=1024):
 
 
 def least_witness(symbol, limit):
-    for x in range(1, limit):
+    for x in range(1, limit + 1):
         if symbol(x) == -1:
             return x
     raise Refused("budget exceeded")

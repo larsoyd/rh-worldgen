@@ -13,7 +13,7 @@ GOOD_N = P521 * P607
 
 def exact_budget(n):
     with mpmath.workdps(60):
-        return int(mpmath.floor(2 * mpmath.log(n) ** 2))
+        return int(mpmath.floor((n.bit_length() * mpmath.log(2)) ** 2))
 
 
 class Budget(unittest.TestCase):
@@ -22,14 +22,21 @@ class Budget(unittest.TestCase):
             self.assertEqual(budget(n), exact_budget(n), n)
 
     def test_known_values(self):
-        self.assertEqual(budget(3705), 135)
-        self.assertEqual(budget(2 ** 1024 - 1), 1007582)
+        self.assertEqual(budget(2 ** 1023 + 1), 503791)
+        self.assertEqual(budget(2 ** 1024 - 1), 503791)
+        self.assertEqual(budget(2 ** 2048 - 1), 2015165)
+        self.assertEqual([side(2 ** 1023 + 1), side(2 ** 2048 - 1)], [710, 1420])
+
+    def test_budget_covers_log_squared_of_every_n_with_that_length(self):
+        for n in [3001, 2 ** 1023 + 1, 2 ** 1024 - 1, GOOD_N, 2 ** 2048 - 1]:
+            self.assertGreaterEqual(budget(n), math.floor(math.log(n) ** 2))
+        self.assertLess(budget(2 ** 1024 - 1), math.log(2 ** 1024 - 1) ** 2)
 
     def test_side_covers_budget(self):
         for n in [3705, GOOD_N, 2 ** 2048 - 1]:
             s = side(n)
-            self.assertGreaterEqual(s * s, budget(n) - 1)
-            self.assertLess((s - 1) * (s - 1), budget(n) - 1)
+            self.assertGreaterEqual(s * s, budget(n))
+            self.assertLess((s - 1) * (s - 1), budget(n))
 
 
 class ClientChecks(unittest.TestCase):
@@ -54,7 +61,7 @@ class ClientChecks(unittest.TestCase):
         self.refused(2 ** 1279 - 1, "no hidden layer")
 
     def test_small_factor_below_budget(self):
-        self.refused(1000003 * P607 * P521, "small factor")
+        self.refused(503791 * P607 * P521, "small factor")
         self.refused(1013 * P607 * P521, "small factor")
 
     def test_factor_inside_patch_but_above_budget(self):
@@ -78,14 +85,14 @@ class Witnesses(unittest.TestCase):
             want = next((x for x in range(1, n) if jacobi(x, n) == -1), None)
             if want is None:
                 continue
-            self.assertEqual(least_witness(lambda x: jacobi(x, n), n + 1), want, n)
+            self.assertEqual(least_witness(lambda x: jacobi(x, n), n), want, n)
 
     def test_budget_exceeded_refuses(self):
         n = 11128425
         with self.assertRaises(Refused) as cm:
-            least_witness(lambda x: jacobi(x, n), 73)
+            least_witness(lambda x: jacobi(x, n), 72)
         self.assertEqual(str(cm.exception), "refused: budget exceeded")
-        self.assertEqual(least_witness(lambda x: jacobi(x, n), 74), 73)
+        self.assertEqual(least_witness(lambda x: jacobi(x, n), 73), 73)
 
     def test_g2_on_big_n(self):
         w = g2_witness(GOOD_N)

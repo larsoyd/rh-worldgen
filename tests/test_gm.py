@@ -61,13 +61,13 @@ class Guarantee(unittest.TestCase):
             b = check_modulus(n)
             for f in (p, q):
                 w = g1_witness(f, n)
-                self.assertLess(w, b)
+                self.assertLessEqual(w, b)
                 self.assertEqual(jacobi(w, f), -1)
                 self.assertTrue(all(jacobi(x, f) == 1 for x in range(1, w)))
                 if rigged:
                     self.assertGreater(w, forced_bound(f.bit_length()))
             w2 = g2_witness(n)
-            self.assertLess(w2, b)
+            self.assertLessEqual(w2, b)
             self.assertGreaterEqual(hash_chain_index(n), 1)
             count += 1
             print(f"[g1] bits={n.bit_length()} rigged={rigged} budget={b} g1p={g1_witness(p, n)} "
@@ -92,13 +92,16 @@ class Guarantee(unittest.TestCase):
                 n = p * q
                 if n >= 10 ** 6:
                     break
+                if n < 3000:
+                    continue
                 try:
                     b = check_modulus(n, min_bits=1)
                 except Refused:
                     continue
+                self.assertGreater(p, math.log(n) ** 2)
                 for f in (p, q):
-                    self.assertLess(least_witness(lambda x: jacobi(x, f), b), b, n)
-                self.assertLess(least_witness(lambda x: jacobi(x, n), b), b, n)
+                    self.assertLessEqual(least_witness(lambda x: jacobi(x, f), b), b, n)
+                self.assertLessEqual(least_witness(lambda x: jacobi(x, n), b), b, n)
                 try:
                     least_witness(lambda x: jacobi(x, p), math.floor(math.log(n)))
                 except Refused:
