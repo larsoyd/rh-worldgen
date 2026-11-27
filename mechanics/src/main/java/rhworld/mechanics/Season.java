@@ -3,6 +3,7 @@ package rhworld.mechanics;
 import java.math.BigInteger;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import rhworld.engine.contract.Verdict;
 import rhworld.engine.json.Json;
 import rhworld.engine.telemetry.Telemetry;
@@ -77,6 +78,10 @@ public final class Season {
 
     public Realm realm(Player player) {
         return warden.realm(player.x);
+    }
+
+    public OptionalLong replay(RideLog log) {
+        return Audit.replay(warden, log);
     }
 
     public boolean collect(Player player) {
