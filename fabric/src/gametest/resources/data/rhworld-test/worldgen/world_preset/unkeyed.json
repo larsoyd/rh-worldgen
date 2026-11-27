@@ -1,0 +1,19 @@
+{
+  "dimensions": {
+    "minecraft:overworld": {
+      "type": "minecraft:overworld",
+      "generator": {
+        "type": "rhworld:hybrid",
+        "realm": "hearth",
+        "delegate": {
+          "type": "minecraft:noise",
+          "biome_source": {
+            "type": "minecraft:multi_noise",
+            "preset": "minecraft:overworld"
+          },
+          "settings": "minecraft:overworld"
+        }
+      }
+    }
+  }
+}

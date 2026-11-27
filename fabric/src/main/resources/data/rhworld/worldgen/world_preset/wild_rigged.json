@@ -1,0 +1,89 @@
+{
+  "dimensions": {
+    "minecraft:overworld": {
+      "type": "minecraft:overworld",
+      "generator": {
+        "type": "rhworld:hybrid",
+        "realm": "hearth",
+        "modulus": "121305558352211501227647264844146851339940360100718831430204622654351545673015542094777888294945262070153357965528797460358442210252391423385932359166087324749375093672987801367133643819972280250724730048429860684729539357952571313310333009813632074251966209413704520242670258933910151102852215335957908198129",
+        "delegate": {
+          "type": "minecraft:noise",
+          "biome_source": {
+            "type": "minecraft:multi_noise",
+            "preset": "minecraft:overworld"
+          },
+          "settings": "minecraft:overworld"
+        }
+      }
+    },
+    "minecraft:the_nether": {
+      "type": "minecraft:the_nether",
+      "generator": {
+        "type": "minecraft:noise",
+        "biome_source": {
+          "type": "minecraft:multi_noise",
+          "preset": "minecraft:nether"
+        },
+        "settings": "minecraft:nether"
+      }
+    },
+    "minecraft:the_end": {
+      "type": "minecraft:the_end",
+      "generator": {
+        "type": "minecraft:noise",
+        "biome_source": {
+          "type": "minecraft:the_end"
+        },
+        "settings": "minecraft:end"
+      }
+    },
+    "rhworld:ember": {
+      "type": "minecraft:overworld",
+      "generator": {
+        "type": "rhworld:hybrid",
+        "realm": "ember",
+        "modulus": "121305558352211501227647264844146851339940360100718831430204622654351545673015542094777888294945262070153357965528797460358442210252391423385932359166087324749375093672987801367133643819972280250724730048429860684729539357952571313310333009813632074251966209413704520242670258933910151102852215335957908198129",
+        "delegate": {
+          "type": "minecraft:noise",
+          "biome_source": {
+            "type": "minecraft:fixed",
+            "biome": "minecraft:badlands"
+          },
+          "settings": "minecraft:overworld"
+        }
+      }
+    },
+    "rhworld:mist": {
+      "type": "minecraft:overworld",
+      "generator": {
+        "type": "rhworld:hybrid",
+        "realm": "mist",
+        "modulus": "121305558352211501227647264844146851339940360100718831430204622654351545673015542094777888294945262070153357965528797460358442210252391423385932359166087324749375093672987801367133643819972280250724730048429860684729539357952571313310333009813632074251966209413704520242670258933910151102852215335957908198129",
+        "delegate": {
+          "type": "minecraft:noise",
+          "biome_source": {
+            "type": "minecraft:fixed",
+            "biome": "minecraft:swamp"
+          },
+          "settings": "minecraft:overworld"
+        }
+      }
+    },
+    "rhworld:frost": {
+      "type": "minecraft:overworld",
+      "generator": {
+        "type": "rhworld:hybrid",
+        "realm": "frost",
+        "modulus": "121305558352211501227647264844146851339940360100718831430204622654351545673015542094777888294945262070153357965528797460358442210252391423385932359166087324749375093672987801367133643819972280250724730048429860684729539357952571313310333009813632074251966209413704520242670258933910151102852215335957908198129",
+        "delegate": {
+          "type": "minecraft:noise",
+          "biome_source": {
+            "type": "minecraft:fixed",
+            "biome": "minecraft:snowy_plains"
+          },
+          "settings": "minecraft:overworld"
+        }
+      }
+    }
+  }
+}

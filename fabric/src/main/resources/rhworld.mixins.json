@@ -1,0 +1,1 @@
+{"required": true, "package": "rhworld.fabric.mixin", "compatibilityLevel": "JAVA_25", "mixins": ["ChunkMapMixin"], "injectors": {"defaultRequire": 1}}
