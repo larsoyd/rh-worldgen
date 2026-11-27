@@ -146,14 +146,17 @@ derivation written below, which nobody has machine-checked.
    Re s > 1/2, L(s, chi) is not zero, except for the trivial character at s = 1. This is the generalized Riemann
    hypothesis for Dirichlet L-functions.
 2. Published: Lamzouri, Li, Soundararajan, "Conditional bounds for the least quadratic non-residue and related problems",
-   Math. Comp. 84 (2015), arXiv 1309.3595v3, Theorem 1.1 part (2). Assume that hypothesis. Let q >= 3000 and let H be a proper
-   subgroup of the units mod q. If no prime below (ln q)^2 divides q, then some prime l <= (ln q)^2 lies outside H. The
-   paper's later correction concerns a different lemma, used only for its asymptotic Theorems 1.2 and 1.3.
+   Math. Comp. 84 (2015), arXiv 1309.3595v3, Theorem 1.1, as stated there: "Assume GRH. Let q ≥ 3000 be an integer, and
+   let H be a proper subgroup of G = (ℤ/qℤ)*. ... (2) Suppose q is not divisible by any prime below (log q)². Then there
+   is a prime ℓ ≤ (log q)² with ℓ not lying in the subgroup H." Here log is the natural log. The paper's later correction
+   concerns a different lemma, used only for its asymptotic Theorems 1.2 and 1.3.
 3. Budget. For a number of bit length k, B(k) = floor((k ln 2)^2), computed exactly in integer arithmetic. It depends only
    on k, so it is fixed before the number is seen. B(1024) = 503791, B(2048) = 2015165. Since ln q < k ln 2, every prime
    below (ln q)^2 is at most B, and the prime l from step 2 is an integer at most B.
 
-### RHW-C1 v1: least canonical witness and hidden layer
+### RHW-C1 v1
+Least canonical witness and hidden layer.
+
 Input: an odd modulus n of k >= 1024 bits published by the game master, who keeps its factors.
 Refusals, checked in this order:
 1. `refused: modulus too small or even`: n is even or shorter than 1024 bits.
@@ -168,11 +171,14 @@ Statement, for every n that passes:
 - Hidden: for every prime factor p of n, the least x <= B with Legendre symbol (x/p) = -1 exists. So the hidden layer is
   not constant on the spawn patch.
 
-Derivation (ours): take q = n in step 2. Then q >= 3000, and refusal 4 has ruled out every prime factor up to B. H is the
+Derivation (ours): take q = n in step 2. The hypotheses hold by the client checks: q >= 3000 because n has at least 1024
+bits (refusal 1), and no prime below (ln n)^2 divides n because refusal 4 has trial-divided by everything up to B. H is the
 kernel of (x/n), which is proper because n is not a square, or the kernel of (x/p) read mod n, which is proper by the
 Chinese remainder theorem. The prime from step 2 is at most B and does not divide n.
 
-### RHW-C3 v1: prime basis, routes to states and the gate
+### RHW-C3 v1
+Prime basis, routes to states and the gate.
+
 Input: layers n_1, ..., n_r. These are public moduli, or after a reveal the game master's factors p and q. The state of a
 tile x is r bits, and bit i is 1 when (x/n_i) = -1. States multiply: the state of x y is the XOR of the states of x and y.
 M is the least common multiple of the layers, k is its bit length and B = B(k). The alphabet S is all primes up to B.
@@ -201,7 +207,9 @@ Derivation (ours):
   square. If a prime divides the product an odd number of times, the Chinese remainder theorem gives a unit where the
   character is -1. Refusal 4 makes every such character nontrivial. Hence the state map from the units mod M onto the r
   bits is onto.
-- The primes span. If the kept states span only a proper subspace V, the units whose state lies in V form a proper
+- In two lines: if the primes up to B had states inside a proper subspace V, the units with state in V would be a proper
+  subgroup containing every prime up to B, which step 2 forbids. So the primes up to B span all states.
+- The scan in detail. If the kept states span only a proper subspace V, the units whose state lies in V form a proper
   subgroup. Step 2 with q = M (refusals 5 and 6 give its hypotheses) yields a prime at most B outside that subgroup. The
   least such prime is the next one the scan keeps, because every smaller prime lies in V. After r rounds the kept states
   are a basis.
@@ -209,6 +217,10 @@ Derivation (ours):
   previous point. So every state has exactly 2^(|S| - r) subsets mapping to it.
 
 ### What is not proved
+- Existence only. The contracts say a witness, a basis and a route exist within the budget. They say nothing about how
+  many tiles of each kind there are or how they are spread.
+- Prefix only. Every statement is about the integers 1 to B (and products of primes up to B). Nothing is claimed for a
+  window starting elsewhere.
 - Nothing here is machine-checked beyond the Lean theorem. The step to explicit bounds is the published Theorem 1.1, and
   the wiring is ours.
 - The guarantees are worst-case bounds. Real witnesses and basis primes are tiny: below 50 for random keys, and 349 and
