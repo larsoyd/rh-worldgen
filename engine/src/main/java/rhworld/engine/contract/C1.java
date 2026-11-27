@@ -25,7 +25,7 @@ public final class C1 {
             new Hypothesis("q = n >= 3000", "recomputed.c1.bits"),
             new Hypothesis("no prime factor of n at most floor((ln n)^2)", "recomputed.c1.trial_limit"),
             new Hypothesis("H = ker (./n) is proper: n is not a perfect square", "recomputed.c1.square"),
-            new Hypothesis("H = ker (./p) and ker (./q) are proper: p, q distinct primes", "deferred.reveal.factors"));
+            new Hypothesis("H = ker (./p) and ker (./q) are proper: p, q distinct primes", "deferred.reveal.factors_status"));
 
     public record Admission(BigInteger n, int bits, long budget, long side, long trialLimit, long primesTested) {}
 

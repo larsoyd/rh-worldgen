@@ -22,7 +22,7 @@ public final class C3 {
             new Hypothesis("M = lcm of the layers >= 3000", "recomputed.c3.lcm_bits"),
             new Hypothesis("no prime factor of any layer at most B = floor((ln 2 bitlen M)^2)", "recomputed.c3.bound"),
             new Hypothesis("phi onto F2^r: no nonempty product of layers is a perfect square", "recomputed.c3.independent"),
-            new Hypothesis("hidden layers are the distinct prime factors of n", "deferred.reveal.factors"));
+            new Hypothesis("hidden layers are the distinct prime factors of n", "deferred.reveal.factors_status"));
 
     public record Basis(int[] primes, int[] vectors, int rank, long steps, long bound) {
         public Basis {

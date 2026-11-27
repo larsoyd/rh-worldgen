@@ -102,6 +102,23 @@ class CertificateTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void everyHypothesisPointsAtAnExistingField() {
+        Map<String, Object> m = (Map<String, Object>) Json.parse(Certificate.of(gm(3)).json());
+        int checked = 0;
+        for (Object contract : ((Map<String, Object>) m.get("theorem")).values()) {
+            for (Object h : (List<Object>) ((Map<String, Object>) contract).get("hypotheses")) {
+                String path = (String) ((Map<String, Object>) h).get("checked_by");
+                Object at = m;
+                for (String part : path.split("\\.")) at = at instanceof Map<?, ?> x ? x.get(part) : null;
+                assertTrue(at != null, "dangling checked_by " + path);
+                checked++;
+            }
+        }
+        assertEquals(8, checked);
+    }
+
+    @Test
     void addedAndRemovedFieldsAreNamed() {
         String pub = Certificate.of(world(0)).json();
         assertEquals("refused: field mismatch recomputed.extra",
