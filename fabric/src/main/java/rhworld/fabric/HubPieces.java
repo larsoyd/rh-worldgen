@@ -100,6 +100,10 @@ public final class HubPieces {
             index = tag.getIntOr("prime_index", 0);
         }
 
+        public BlockPos origin() {
+            return new BlockPos(ox, oy, oz);
+        }
+
         @Override
         protected void addAdditionalSaveData(StructurePieceSerializationContext ctx, CompoundTag tag) {
             super.addAdditionalSaveData(ctx, tag);

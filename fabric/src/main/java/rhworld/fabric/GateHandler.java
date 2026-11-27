@@ -9,7 +9,6 @@ import rhworld.mechanics.Colour;
 import rhworld.mechanics.Ride;
 
 public final class GateHandler {
-    public static final String REFUSED_WORLD = "refused: engine world api not available";
     public static final String NO_SESSION = "refused: this world has no rhworld session";
     public static final int COOLDOWN_TICKS = 40;
 

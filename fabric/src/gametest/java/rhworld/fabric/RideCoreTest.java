@@ -13,6 +13,18 @@ import rhworld.mechanics.Colour;
 import rhworld.mechanics.Realm;
 import rhworld.mechanics.Warden;
 
+final class OperatorKeyHolder {
+    private OperatorKeyHolder() {}
+
+    static BigInteger p() {
+        try (var in = RideCoreTest.class.getResourceAsStream("/rhworld-test/rigged-key.json")) {
+            return new BigInteger(JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject().get("p").getAsString());
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+}
+
 public final class RideCoreTest {
     static final byte[] SEED = new byte[32];
 
