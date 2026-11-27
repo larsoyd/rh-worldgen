@@ -1,0 +1,166 @@
+import gzip
+import hashlib
+import re
+import struct
+import sys
+import zlib
+from pathlib import Path
+
+NAMESPACE = "rhworld:"
+DEFAULTS = {"rhworld:shrine": {"prime_index": "0"}}
+
+
+class Reader:
+    def __init__(self, raw):
+        self.raw, self.pos = raw, 0
+
+    def take(self, n):
+        out = self.raw[self.pos:self.pos + n]
+        if len(out) != n:
+            raise ValueError(f"nbt truncated at pos={self.pos} need={n}")
+        self.pos += n
+        return out
+
+    def fmt(self, f):
+        return struct.unpack(f, self.take(struct.calcsize(f)))[0]
+
+    def string(self):
+        return self.take(self.fmt(">H")).decode("utf-8", "surrogateescape")
+
+    def payload(self, tag):
+        simple = {1: ">b", 2: ">h", 3: ">i", 4: ">q", 5: ">f", 6: ">d"}
+        if tag in simple:
+            return self.fmt(simple[tag])
+        if tag == 7:
+            return self.take(self.fmt(">i"))
+        if tag == 8:
+            return self.string()
+        if tag == 9:
+            inner, count = self.fmt(">b"), self.fmt(">i")
+            return [self.payload(inner) for _ in range(count)]
+        if tag == 10:
+            out = {}
+            for _ in range(1 << 20):
+                t = self.fmt(">b")
+                if t == 0:
+                    return out
+                key = self.string()
+                out[key] = self.payload(t)
+            raise ValueError("nbt compound without end")
+        if tag in (11, 12):
+            count = self.fmt(">i")
+            return list(struct.unpack(f">{count}{'i' if tag == 11 else 'q'}", self.take(count * (4 if tag == 11 else 8))))
+        raise ValueError(f"unknown nbt tag={tag} pos={self.pos}")
+
+
+def parse_nbt(raw):
+    r = Reader(raw)
+    tag = r.fmt(">b")
+    r.string()
+    return r.payload(tag)
+
+
+def read_region(raw):
+    for slot in range(1024):
+        loc = struct.unpack(">I", raw[4 * slot:4 * slot + 4])[0]
+        offset = (loc >> 8) * 4096
+        if not loc:
+            continue
+        length, kind = struct.unpack(">IB", raw[offset:offset + 5])
+        data = raw[offset + 5:offset + 4 + length]
+        if kind == 2:
+            data = zlib.decompress(data)
+        elif kind == 1:
+            data = gzip.decompress(data)
+        elif kind != 3:
+            raise ValueError(f"unsupported chunk compression kind={kind} slot={slot}")
+        yield parse_nbt(data)
+
+
+def unpack(longs, bits, count):
+    per, mask = 64 // bits, (1 << bits) - 1
+    return [((longs[i // per] & (1 << 64) - 1) >> (i % per * bits)) & mask for i in range(count)]
+
+
+def state_string(name, props):
+    return name + ("[" + ",".join(f"{k}={props[k]}" for k in sorted(props)) + "]" if props else "")
+
+
+def palette_state(entry):
+    # saves omit default property values so they are filled back in here
+    if isinstance(entry, str):
+        name, props = entry, {}
+    elif "" in entry:
+        name, props = entry[""], {}
+    elif "id" in entry:
+        name, props = entry["id"], entry.get("properties", {})
+    else:
+        name, props = entry["Name"], entry.get("Properties", {})
+    return state_string(name, {**DEFAULTS.get(name, {}), **props})
+
+
+def rhworld_blocks(chunk):
+    cx, cz = chunk["xPos"], chunk["zPos"]
+    out = []
+    for sec in chunk.get("sections", []):
+        states = sec.get("block_states", {})
+        palette = states.get("palette", [])
+        names = [palette_state(p) for p in palette]
+        if not any(n.startswith(NAMESPACE) for n in names):
+            continue
+        bits = max(4, (len(palette) - 1).bit_length())
+        indices = unpack(states["data"], bits, 4096) if len(palette) > 1 else [0] * 4096
+        for i, idx in enumerate(indices):
+            if names[idx].startswith(NAMESPACE):
+                y, z, x = i >> 8, (i >> 4) & 15, i & 15
+                out.append((cx * 16 + x, sec["Y"] * 16 + y, cz * 16 + z, names[idx]))
+    return out
+
+
+def chunk_hash(blocks):
+    lines = sorted(f"{x} {y} {z} {s}\n" for x, y, z, s in blocks)
+    return hashlib.sha256("".join(lines).encode()).hexdigest()
+
+
+def region_dirs(world):
+    yield "minecraft:overworld", world / "dimensions" / "minecraft" / "overworld" / "region"
+    for d in sorted((world / "dimensions" / "rhworld").iterdir()):
+        yield f"rhworld:{d.name}", d / "region"
+
+
+def world_hashes(world):
+    out, empty = {}, 0
+    for level, folder in region_dirs(Path(world)):
+        if not folder.is_dir():
+            raise FileNotFoundError(f"missing region folder level={level} path={folder}")
+        for f in sorted(folder.glob("r.*.mca")):
+            for chunk in read_region(f.read_bytes()):
+                blocks = rhworld_blocks(chunk)
+                if blocks:
+                    out[(level, chunk["xPos"], chunk["zPos"])] = (len(blocks), chunk_hash(blocks))
+                else:
+                    empty += 1
+    return out, empty
+
+
+def dump_hashes(log):
+    pattern = re.compile(r"\[rhworld-chunk\] level=(\S+) cx=(-?\d+) cz=(-?\d+) blocks=(\d+) sha256=([0-9a-f]{64})")
+    return {(m[1], int(m[2]), int(m[3])): (int(m[4]), m[5]) for m in pattern.finditer(Path(log).read_text())}
+
+
+def main(world, log):
+    mine, empty = world_hashes(world)
+    theirs = dump_hashes(log)
+    missing = sorted(set(theirs) - set(mine))
+    extra = sorted(set(mine) - set(theirs))
+    differ = sorted(k for k in set(mine) & set(theirs) if mine[k] != theirs[k])
+    for k in (missing + extra + differ)[:10]:
+        print(f"[mca] mismatch level={k[0]} cx={k[1]} cz={k[2]} mine={mine.get(k)} dump={theirs.get(k)}")
+    ok = not (missing or extra or differ) and theirs
+    print(f"[mca] verdict={'pass' if ok else 'fail'} chunks_with_blocks={len(mine)} dumped={len(theirs)} "
+          f"missing={len(missing)} extra={len(extra)} differ={len(differ)} empty_chunks={empty}")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(*sys.argv[1:3]))
