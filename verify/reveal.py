@@ -96,3 +96,37 @@ def check_reveal(n, p):
     if not bpsw(q):
         raise Refused("cofactor not prime")
     return min(p, q), max(p, q)
+
+
+TRIAL_LIMIT = 1 << 32
+
+
+def proved_small(q):
+    return 1 < q < TRIAL_LIMIT and all(q % d for d in range(2, math.isqrt(q) + 1))
+
+
+def check_certificate(n, cert):
+    # pocklington: a factored part f of n-1 with f^2 > n and a witness per prime of f proves n prime
+    f = 1
+    for q, e in cert["factors"]:
+        sub = cert.get("sub", {}).get(str(q))
+        if not (proved_small(q) or (sub and check_certificate(q, sub) == "proved")):
+            raise Refused(f"listed factor {q} not proved prime")
+        f *= q ** e
+    if (n - 1) % f:
+        raise Refused("factored part does not divide n-1")
+    if f * f <= n:
+        raise Refused("factored part too small")
+    for q, _ in cert["factors"]:
+        a = cert["witnesses"][str(q)]
+        if pow(a, n - 1, n) != 1 or math.gcd(pow(a, (n - 1) // q, n) - 1, n) != 1:
+            raise Refused(f"witness fails for factor {q}")
+    return "proved"
+
+
+def build_certificate(n, factors):
+    witnesses = {}
+    for q, _ in factors:
+        witnesses[str(q)] = next(a for a in range(2, 10000)
+                                 if pow(a, n - 1, n) == 1 and math.gcd(pow(a, (n - 1) // q, n) - 1, n) == 1)
+    return {"factors": [[q, e] for q, e in factors], "witnesses": witnesses}
