@@ -77,8 +77,8 @@ Both are far larger than any map.
   followed by the 8-byte index, reduced mod `n`.
 - **Hiding is not RH.** Players cannot read the hidden layer because factoring `n` is hard. That has nothing to do
   with RH.
-- **Only part of the chain is machine-checked.** The Lean proof gives GRH without explicit constants. Bach's explicit
-  constant is a published consequence and is not machine-checked here.
+- **Only part of the chain is machine-checked.** The Lean proof gives GRH without explicit constants. The explicit
+  bound used here, LLS 2015 Theorem 1.1 part (2), is a published consequence and is not machine-checked here.
 - **Two-factor rigging shows. One-factor rigging does not.** Rigging both factors forces small tiles to `+1` in both,
   so the player view gets excess land: 62% instead of 50%, which players can see from `n` alone. Rigging only `p`,
   which is enough to attack G1 for `p`, leaves the player view balanced (measured 50.05% land, against 50.02% for a
