@@ -25,7 +25,7 @@ public final class LoadGuard {
             moduli.add(gen.modulus().orElseThrow());
         }
         if (moduli.isEmpty()) return Optional.empty();
-        String key = OperatorKey.load(FabricLoader.getInstance().getConfigDir().resolve("rhworld").resolve("key.json"), moduli);
+        String key = OperatorKey.load(keyFile(), moduli);
         Log.line("load", "realms", moduli.size(), "operator_key", OperatorKey.current().isPresent(), "result", key);
         if (!key.equals("ok")) return Optional.of(key);
         try {
@@ -39,6 +39,12 @@ public final class LoadGuard {
             return Optional.of(m.startsWith("refused:") ? m : "refused: " + m);
         }
         return Optional.empty();
+    }
+
+    static java.nio.file.Path keyFile() {
+        String override = System.getProperty("rhworld.key");
+        return override != null ? java.nio.file.Path.of(override)
+                : FabricLoader.getInstance().getConfigDir().resolve("rhworld").resolve("key.json");
     }
 
     public static void check(MinecraftServer server) {

@@ -29,7 +29,7 @@ fabricApi {
         createSourceSet = true
         modId = "rhworld-test"
         enableGameTests = true
-        enableClientGameTests = false
+        enableClientGameTests = true
         eula = true
     }
 }
@@ -54,6 +54,9 @@ loom {
             vmArg("-Drhworld.order=" + (findProperty("rhworld.order") ?: "0"))
             findProperty("rhworld.threads")?.let { vmArg("-Dmax.bg.threads=$it") }
             ideConfigGenerated(false)
+        }
+        matching { it.name == "clientGameTest" }.configureEach {
+            findProperty("rhworld.key")?.let { vmArg("-Drhworld.key=$it") }
         }
     }
 }
