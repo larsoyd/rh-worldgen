@@ -4,6 +4,9 @@ import java.math.BigInteger;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.function.Supplier;
 import rhworld.engine.contract.Verdict;
 import rhworld.engine.json.Json;
 import rhworld.engine.telemetry.Telemetry;
@@ -44,6 +47,7 @@ public final class Season {
 
     private final Warden warden;
     private final WildGate gate;
+    private final ConcurrentMap<String, Player> live = new ConcurrentHashMap<>();
 
     Season(Warden warden) {
         this.warden = warden;
@@ -68,12 +72,25 @@ public final class Season {
     }
 
     public Ride ride(Player player, Colour colour, String opening) {
-        long index = player.log.rides().size();
+        long index = player.log.size();
         BigInteger after = gate.ride(player.x, colour, Dice.forOpening(opening, index, gate.size()));
         Ride ride = new Ride(index, colour, opening, player.x, after, warden.realm(after));
         player.log.add(ride);
         player.x = after;
         return ride;
+    }
+
+    // live players stay in memory so a ride never parses or copies the whole log
+    public void hold(String id, Player player) {
+        live.put(id, player);
+    }
+
+    public Player resume(String id, Supplier<String> stored) {
+        return live.computeIfAbsent(id, k -> restore(stored.get()));
+    }
+
+    public Optional<Player> release(String id) {
+        return Optional.ofNullable(live.remove(id));
     }
 
     public Realm realm(Player player) {
@@ -94,8 +111,7 @@ public final class Season {
         RideLog log = RideLog.fromMap((Map<?, ?>) root.get("log"));
         if (!log.modulus().equals(warden.modulus())) throw new IllegalArgumentException("refused: player state belongs to another key");
         BigInteger x = new BigInteger((String) root.get("attunement"));
-        BigInteger expected = log.rides().isEmpty() ? BigInteger.ONE : log.rides().getLast().after();
-        if (!x.equals(expected)) throw new IllegalArgumentException("refused: attunement is not where the last ride ended");
+        if (!x.equals(log.end())) throw new IllegalArgumentException("refused: attunement is not where the last ride ended");
         return new Player(x, log, Concord.fromMap((Map<?, ?>) root.get("concord")));
     }
 }

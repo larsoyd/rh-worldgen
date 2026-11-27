@@ -43,11 +43,11 @@ final class ReplayMain {
             String m = e.getMessage();
             return refused(t, json, err, m != null && m.startsWith("refused: ") ? m.substring(9) : "malformed log " + e);
         }
-        t.event("replay", "rides", log.rides().size(), "dice", log.custody().label(), "n_bits", log.modulus().bitLength());
+        t.event("replay", "rides", log.size(), "dice", log.custody().label(), "n_bits", log.modulus().bitLength());
         t.event("audit", Audit.of(log, THRESHOLD).fields());
         Optional<String> bad = Replay.check(log);
         if (bad.isPresent()) return refused(t, json, err, bad.get().substring(9));
-        t.event(json ? "verdict" : "rhworld", "verdict", "ok", "rides", log.rides().size());
+        t.event(json ? "verdict" : "rhworld", "verdict", "ok", "rides", log.size());
         return 0;
     }
 
