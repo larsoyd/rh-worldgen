@@ -1,5 +1,6 @@
 import hashlib
 import math
+import re
 
 from verify import certcheck
 from verify.gate_bench import primes_upto
@@ -8,6 +9,12 @@ from verify.reveal import Refused, bpsw, check_certificate, kronecker_odd
 CONTRACTS = [{"id": "RHW-C1", "version": 1}, {"id": "RHW-C3", "version": 1}]
 LEAN = "LFunction_ne_zero_of_half_lt_re"
 PAPER = "Lamzouri, Li, Soundararajan, Math. Comp. 84 (2015), arXiv 1309.3595v3, Thm 1.1 (2)"
+HYPOTHESES = {
+    "RHW-C1": ["recomputed.c1.bits", "recomputed.c1.trial_limit", "recomputed.c1.square", "deferred.reveal.factors_status"],
+    "RHW-C3": ["recomputed.c3.lcm_bits", "recomputed.c3.trial_limit", "recomputed.c3.independent",
+               "deferred.reveal.factors_status"],
+}
+UNSHIPPED_DOC = re.compile(r"[\w./-]+\.md\b")
 NOT_PROVED = [
     "GRH is not checked by this certificate. It is the hypothesis of the cited paper, machine-checked only as the Lean "
     "statement named in theorem",
@@ -68,6 +75,8 @@ def check_c1(n, c1, b):
 
 def check_c3(c3, layers, b, field):
     need(c3.get("bound") == b, f"{field}.bound")
+    need(c3.get("trial_limit") == b, f"{field}.trial_limit")
+    need(c3.get("primes_tested") == len(primes_upto(b)), f"{field}.primes_tested")
     found = basis(layers, b)
     for key, value in found.items():
         need(c3.get("basis", {}).get(key) == value, f"{field}.basis.{key}")
@@ -92,6 +101,10 @@ def check_theorem(cert):
         need(t.get("claim_scope") == "prefix 1..B", f"{field}.claim_scope")
         refs = [link.get("ref") for link in t.get("chain", [])]
         need(refs[:2] == [LEAN, PAPER], f"{field}.chain")
+        texts = [t.get("claim", "")] + [v for link in t.get("chain", []) for v in link.values()]
+        docs = {m for text in texts for m in UNSHIPPED_DOC.findall(text)} - {"README.md"}
+        need(not docs, f"{field}.chain")
+        need([h.get("checked_by") for h in t.get("hypotheses", [])] == HYPOTHESES[c["id"]], f"{field}.hypotheses")
         for h in t.get("hypotheses", []):
             pending = h["checked_by"].startswith("deferred.reveal.") and cert["deferred"]["reveal"] is None
             need(pending or resolve(cert, h["checked_by"]), f"{field}.hypotheses")
@@ -140,4 +153,5 @@ def verify(raw):
     need(cert.get("not_proved") == NOT_PROVED, "not_proved")
     if cert.get("deferred", {}).get("reveal") is not None:
         check_reveal(n, cert["deferred"]["reveal"], b)
+    need(cert.get("world_id") == world_id(cert), "world_id")
     return world_id(cert)
