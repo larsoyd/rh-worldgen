@@ -9,6 +9,12 @@ public final class Dice {
 
     private Dice() {}
 
+    public static long[] forOpening(String opening, long index, int count) {
+        byte[] seed = SeedChain.parse(opening);
+        if (seed == null) throw new IllegalArgumentException("refused: opening is not 64 lower case hex digits");
+        return bits(seed, index, count);
+    }
+
     // block b is sha256 of seed, index and b, bits read low first
     public static long[] bits(byte[] seed, long index, int count) {
         if (seed.length != SEED_BYTES) throw new IllegalArgumentException("refused: seed must be 32 bytes length=" + seed.length);
@@ -28,7 +34,7 @@ public final class Dice {
         return words;
     }
 
-    private static MessageDigest sha256() {
+    static MessageDigest sha256() {
         try {
             return MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
