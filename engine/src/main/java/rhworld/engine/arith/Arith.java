@@ -80,7 +80,8 @@ public final class Arith {
         return true;
     }
 
-    public static Verdict<BigInteger> subsetProduct(long[] bits, int[] primes, BigInteger n) {
+    public static Verdict<BigInteger> subsetProduct(long[] bits, PrimeTable table, BigInteger n) {
+        int[] primes = table.array();
         if (n.compareTo(BigInteger.ONE) <= 0) return new Verdict.Refused<>("modulus must exceed one n=" + n);
         if (bits.length != (primes.length + 63) / 64) {
             return new Verdict.Refused<>("bits do not match primes words=" + bits.length + " primes=" + primes.length);

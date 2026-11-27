@@ -19,6 +19,11 @@ class GoldenBasisTest {
         return ((BigInteger) o).intValueExact();
     }
 
+    // the oracle numbers bits by layer order and realms always put the smaller factor in bit 0
+    private static Realm state(int v, boolean swapped) {
+        return Realm.ofState(swapped ? (v & 1) << 1 | v >> 1 : v);
+    }
+
     @Test
     void twoLayerCasesMatchTheOracle() throws IOException {
         Map<?, ?> root = (Map<?, ?>) Json.parse(Files.readString(Path.of("..", "samples", "c3-golden.json")));
@@ -28,7 +33,9 @@ class GoldenBasisTest {
             Map<?, ?> c = (Map<?, ?>) o;
             List<?> layers = (List<?>) c.get("layers");
             if (layers.size() != 2) continue;
-            Warden warden = new Warden(new BigInteger((String) layers.get(0)), new BigInteger((String) layers.get(1)));
+            BigInteger first = new BigInteger((String) layers.get(0));
+            Warden warden = new Warden(first, new BigInteger((String) layers.get(1)));
+            boolean swapped = first.compareTo(new BigInteger((String) layers.get(1))) > 0;
             WildGate gate = WildGate.forModulus(warden.modulus());
             String tag = "layers=" + layers;
             assertEquals(integer(c.get("budget")), Budget.forBits(warden.modulus().bitLength()), tag);
@@ -47,13 +54,13 @@ class GoldenBasisTest {
             List<?> vectors = (List<?>) c.get("vectors");
             for (int j = 0; j < 2; j++) {
                 assertEquals(integer(primes.get(j)), kept.get(j), tag);
-                assertEquals(Realm.ofState(integer(vectors.get(j))), warden.realm(BigInteger.valueOf(kept.get(j))), tag);
+                assertEquals(state(integer(vectors.get(j)), swapped), warden.realm(BigInteger.valueOf(kept.get(j))), tag);
             }
             for (Object r : (List<?>) c.get("routes")) {
                 List<?> route = (List<?>) r;
                 Realm shift = Realm.HEARTH;
                 for (Object l : (List<?>) route.get(2)) shift = shift.plus(warden.realm((BigInteger) l));
-                assertEquals(Realm.ofState(integer(route.get(1))), Realm.ofState(integer(route.get(0))).plus(shift), tag + " route=" + route);
+                assertEquals(state(integer(route.get(1)), swapped), state(integer(route.get(0)), swapped).plus(shift), tag + " route=" + route);
             }
             used++;
         }

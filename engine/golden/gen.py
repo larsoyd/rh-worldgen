@@ -30,7 +30,7 @@ def prime_cases(rng):
 
 
 def modulus_case(label, n, factors=None):
-    case = {"label": label, "n": str(n)}
+    case = {"label": label, "n": str(n), "factors": [str(f) for f in factors or []]}
     try:
         case["budget"] = check_modulus(n)
         case["side"] = side(n)

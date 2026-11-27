@@ -10,7 +10,7 @@ import java.util.EnumMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import rhworld.engine.arith.Arith;
-import rhworld.engine.arith.Primes;
+import rhworld.engine.arith.PrimeTable;
 
 class WildGateTest {
     private static final Warden RIGGED = Keys.sample("rigged-1024");
@@ -38,7 +38,7 @@ class WildGateTest {
 
     @Test
     void undersizedGateIsStuckOnTheRiggedKey() {
-        WildGate small = new WildGate(RIGGED.modulus(), Primes.upTo(331));
+        WildGate small = new WildGate(RIGGED.modulus(), PrimeTable.upTo(331));
         assertEquals(67, small.size());
         assertEquals(0, RIGGED.rank(small.primes()));
     }
@@ -87,14 +87,14 @@ class WildGateTest {
 
     @Test
     void undersizedGateHidesTwoRealmsOnTheRiggedKey() {
-        WildGate small = new WildGate(RIGGED.modulus(), Primes.upTo(349));
+        WildGate small = new WildGate(RIGGED.modulus(), PrimeTable.upTo(349));
         assertEquals(70, small.size());
         assertEquals(1, RIGGED.rank(small.primes()));
         BigInteger x = BigInteger.ONE;
         for (int r = 0; r < 200; r++) {
             Colour colour = r % 2 == 0 ? Colour.WARM : Colour.COLD;
             x = small.ride(x, colour, Dice.bits(seed(7), r, small.size()));
-            assertEquals(colour == Colour.WARM ? Realm.HEARTH : Realm.FROST, RIGGED.realm(x), "ride=" + r);
+            assertEquals(colour == Colour.WARM ? Realm.HEARTH : Realm.MIST, RIGGED.realm(x), "ride=" + r);
         }
     }
 
@@ -133,7 +133,7 @@ class WildGateTest {
     @Test
     void gateWithoutAWitnessIsRefused() {
         IllegalStateException e = assertThrows(IllegalStateException.class,
-                () -> new WildGate(RIGGED.modulus(), Primes.upTo(331)).ride(BigInteger.ONE, Colour.COLD, new long[2]));
+                () -> new WildGate(RIGGED.modulus(), PrimeTable.upTo(331)).ride(BigInteger.ONE, Colour.COLD, new long[2]));
         assertEquals("refused: budget exceeded no jacobi -1 prime in the gate size=67", e.getMessage());
     }
 }

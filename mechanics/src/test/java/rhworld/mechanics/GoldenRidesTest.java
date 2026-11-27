@@ -45,7 +45,7 @@ class GoldenRidesTest {
         StringBuilder s = new StringBuilder();
         for (Ride r : log.rides()) {
             long[] e = Dice.forOpening(r.opening(), r.index(), primes.length);
-            BigInteger y = ((Verdict.Ok<BigInteger>) Arith.subsetProduct(e, primes, log.modulus())).value();
+            BigInteger y = ((Verdict.Ok<BigInteger>) Arith.subsetProduct(e, gate.table(), log.modulus())).value();
             boolean fired = Colour.ofJacobi(Arith.jacobi(r.before().multiply(y), log.modulus())) != r.colour();
             s.append(fired ? ((e[w >>> 6] >>> (w & 63) & 1) == 1 ? '1' : '0') : '-');
         }
@@ -55,10 +55,10 @@ class GoldenRidesTest {
     private static void pin(String name, Warden warden) throws IOException {
         RideLog log = generate(warden);
         Path file = Path.of("..", "samples", "rides-" + name + ".json");
-        if ("1".equals(System.getenv("RHWORLD_WRITE_GOLDEN"))) Files.writeString(file, log.toJson() + "\n");
+        if ("1".equals(System.getenv("RHWORLD_WRITE_GOLDEN"))) Files.writeString(file, log.toJson());
         String steer = steering(log);
         System.out.println("[golden-rides] name=" + name + " rides=" + RIDES + " steering=" + steer);
-        assertEquals(Files.readString(file).strip(), log.toJson(), "file=" + file);
+        assertEquals(Files.readString(file), log.toJson(), "file=" + file);
         assertEquals(Optional.empty(), Replay.check(RideLog.fromJson(Files.readString(file))));
         assertTrue(steer.contains("0") && steer.contains("1"), "steering pattern=" + steer + " needs both witness bits");
     }

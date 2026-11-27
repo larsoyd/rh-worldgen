@@ -46,6 +46,11 @@ class JsonTest {
     }
 
     @Test
+    void escapesLikePythonJsonWithRawUnicode() {
+        assertEquals("\"\\b\\f\\n\\r\\t\\u0001\\u001f/\u00e9\u4e2d\\\"\\\\\"", Json.write("\b\f\n\r\t\u0001\u001f/\u00e9\u4e2d\"\\"));
+    }
+
+    @Test
     void roundTripsWrittenText() {
         String text = "{\"k\":[1,{\"q\":\"\\u0001\"}],\"n\":-5}";
         assertEquals(text, Json.write(Json.parse(text)));

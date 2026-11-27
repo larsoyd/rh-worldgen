@@ -12,8 +12,8 @@ public final class Warden {
         if (p.equals(q)) throw new IllegalArgumentException("refused: key factors are equal");
         if (!p.testBit(0) || !q.testBit(0) || !Arith.isProbablePrime(p) || !Arith.isProbablePrime(q))
             throw new IllegalArgumentException("refused: key factor not an odd prime");
-        this.p = p;
-        this.q = q;
+        this.p = p.min(q);
+        this.q = p.max(q);
         this.n = p.multiply(q);
     }
 

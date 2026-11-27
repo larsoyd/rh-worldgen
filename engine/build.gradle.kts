@@ -1,5 +1,11 @@
 plugins {
     `java-library`
+    application
+}
+
+application {
+    mainClass = "rhworld.engine.cli.Main"
+    applicationName = "rhworld"
 }
 
 java {
@@ -25,6 +31,8 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.test {
     useJUnitPlatform()
+    systemProperty("rhworld.samples", rootProject.file("samples").absolutePath)
+    inputs.dir(rootProject.file("samples"))
     maxHeapSize = "1g"
     testLogging {
         events("failed")
