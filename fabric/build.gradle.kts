@@ -20,6 +20,8 @@ dependencies {
     implementation("net.fabricmc.fabric-api:fabric-api:0.167.0+26.3")
     implementation(project(":engine"))
     include(project(":engine"))
+    implementation(project(":mechanics"))
+    include(project(":mechanics"))
 }
 
 fabricApi {
