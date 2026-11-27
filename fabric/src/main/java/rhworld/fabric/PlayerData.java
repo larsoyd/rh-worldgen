@@ -29,13 +29,14 @@ public final class PlayerData {
 
     // vanilla clients get a chain the server holds, so their rides carry no promise about the dice
     public static Season.Player state(Player p, Season season) {
-        String json = p.getAttached(STATE);
-        if (json != null) return season.restore(json);
+        String id = p.getStringUUID();
+        if (p.getAttached(STATE) != null) return season.resume(id, () -> p.getAttached(STATE));
         byte[] top = new byte[32];
         RANDOM.nextBytes(top);
         var chain = new SeedChain(top, CHAIN_LENGTH);
         p.setAttached(CHAIN, HexFormat.of().formatHex(top));
         var fresh = season.join(chain.commitment(), Custody.SERVER);
+        season.hold(id, fresh);
         save(p, fresh);
         return fresh;
     }
@@ -44,13 +45,27 @@ public final class PlayerData {
         p.setAttached(STATE, state.toJson());
     }
 
+    // the live player is written back only when the game saves the player
+    public static void flush(Player p) {
+        var season = Session.current().flatMap(Session::season);
+        if (season.isEmpty() || p.getAttached(STATE) == null) return;
+        save(p, season.get().resume(p.getStringUUID(), () -> p.getAttached(STATE)));
+    }
+
+    public static void release(Player p) {
+        flush(p);
+        Session.current().flatMap(Session::season).ifPresent(s -> s.release(p.getStringUUID()));
+    }
+
     public static String commit(Player p, String hex) {
         var session = Session.current();
         if (session.isEmpty() || session.get().season().isEmpty()) return RideCore.NO_KEY;
         if (!lowerHex64(hex)) return "refused: commitment is not 64 lower case hex digits";
         var season = session.get().season().get();
-        if (!state(p, season).log().rides().isEmpty()) return "refused: commitment only before the first ride";
-        save(p, season.join(hex, Custody.PLAYER));
+        if (state(p, season).log().size() != 0) return "refused: commitment only before the first ride";
+        var committed = season.join(hex, Custody.PLAYER);
+        season.hold(p.getStringUUID(), committed);
+        save(p, committed);
         p.removeAttached(CHAIN);
         p.removeAttached(OPENING);
         return "committed";
@@ -66,7 +81,7 @@ public final class PlayerData {
         if (state.log().custody() == Custody.SERVER) {
             String top = p.getAttached(CHAIN);
             if (top == null) return "refused: server held chain missing";
-            return new SeedChain(HexFormat.of().parseHex(top), CHAIN_LENGTH).opening(state.log().rides().size());
+            return new SeedChain(HexFormat.of().parseHex(top), CHAIN_LENGTH).opening(state.log().size());
         }
         String queued = p.getAttached(OPENING);
         return queued == null ? NO_OPENING : queued;

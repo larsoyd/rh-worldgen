@@ -102,7 +102,7 @@ public final class RhCommands {
         return List.of("x=" + (hex.length() > 16 ? hex.substring(0, 16) + "..." : hex) + " x_bits=" + x.bitLength()
                 + " public=" + Colour.ofJacobi(s.world().jacobi(x)).name().toLowerCase()
                 + " dimension=" + p.level().dimension().identifier()
-                + " rides=" + state.log().rides().size() + " sigils=" + state.concord().sigils().size()
+                + " rides=" + state.log().size() + " sigils=" + state.concord().sigils().size()
                 + " dice=" + state.log().custody().label());
     }
 
@@ -110,6 +110,7 @@ public final class RhCommands {
         var lines = new ArrayList<String>();
         lines.add("world_id=" + s.worldId() + " certificate=rhworld.cert/1");
         lines.addAll(Contracts.engine());
+        lines.add(Contracts.GATE);
         Contracts.UNCONDITIONAL.forEach(c -> lines.add(c.line()));
         if (src.getEntity() instanceof ServerPlayer p && s.season().isPresent()
                 && PlayerData.state(p, s.season().get()).log().custody() == Custody.SERVER) {
@@ -196,7 +197,7 @@ public final class RhCommands {
 
     static List<String> reveal(CommandSourceStack src, Session s, String arg) {
         BigInteger p = strictDecimal(arg, s.world().n());
-        if (p == null) return List.of("refused: p is not a decimal integer below n");
+        if (p == null) return List.of("refused: p is not a decimal integer as long as n at most");
         var gm = GmWorld.reveal(s.world(), p, Optional.empty(), Session.TELEMETRY);
         if (!(gm instanceof rhworld.engine.contract.Verdict.Ok<GmWorld> ok)) return List.of(gm.toString());
         var season = s.season().orElseGet(() -> new Season(ok.value()));
@@ -206,7 +207,7 @@ public final class RhCommands {
             var publicReplay = Replay.check(log);
             String hidden = publicReplay.isPresent() ? "skipped" : season.replay(log).stream()
                     .mapToObj(i -> "first_false_report=" + i).findFirst().orElse("all_reports_true");
-            lines.add("player=" + player.getScoreboardName() + " rides=" + log.rides().size() + " dice=" + log.custody().label()
+            lines.add("player=" + player.getScoreboardName() + " rides=" + log.size() + " dice=" + log.custody().label()
                     + " public_replay=" + publicReplay.orElse("ok") + " " + hidden);
         }
         var cert = Certificate.of(ok.value());
@@ -219,7 +220,6 @@ public final class RhCommands {
     static BigInteger strictDecimal(String arg, BigInteger n) {
         if (arg.isEmpty() || arg.length() > n.toString().length() || arg.charAt(0) == '0'
                 || !arg.chars().allMatch(c -> c >= '0' && c <= '9')) return null;
-        BigInteger p = new BigInteger(arg);
-        return p.compareTo(n) < 0 ? p : null;
+        return new BigInteger(arg);
     }
 }

@@ -18,13 +18,10 @@ public final class RideCore {
 
     private RideCore() {}
 
-    // rides a fresh copy and saves it, so a refused ride leaves the stored state as it was
+    // a refused ride leaves the live player as it was, a ride is written back when the player is saved
     public static Outcome ride(Player p, Colour colour) {
         var out = attempt(p, colour);
-        out.state().ifPresent(s -> {
-            PlayerData.save(p, s);
-            PlayerData.used(p);
-        });
+        if (out.ride().isPresent()) PlayerData.used(p);
         return out;
     }
 

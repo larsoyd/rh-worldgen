@@ -7,6 +7,7 @@ public final class Lifecycle {
 
     // listener order against the attachment copy is not fixed, so carry the state over before reading it
     public static void afterRespawn(ServerPlayer old, ServerPlayer fresh, boolean alive) {
+        PlayerData.flush(old);
         for (var type : java.util.List.of(PlayerData.STATE, PlayerData.CHAIN, PlayerData.OPENING)) {
             String v = old.getAttached(type);
             if (v != null) fresh.setAttached(type, v);

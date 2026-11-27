@@ -19,7 +19,6 @@ public final class Sigils {
         var realm = Realm.of(season.get().realm(state));
         if (!player.level().dimension().equals(realm.dimension())) return "refused: this pedestal is not in your realm";
         if (!season.get().collect(state)) return "refused: sigil of " + realm.getSerializedName() + " already held";
-        PlayerData.save(player, state);
         int held = state.concord().sigils().size();
         Log.line("sigil", "player", player.getStringUUID(), "realm", realm.getSerializedName(), "held", held);
         player.sendSystemMessage(Component.literal("Sigil of " + realm.getSerializedName() + " claimed, " + held + " of 4"));

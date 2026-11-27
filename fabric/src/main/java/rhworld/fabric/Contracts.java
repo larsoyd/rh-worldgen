@@ -10,6 +10,9 @@ public final class Contracts {
         }
     }
 
+    public static final String GATE = "id=GATE gate guarantee basis=RHW-C3 v1 statement=\"colour as asked, hidden realm exactly uniform given the colour,"
+            + " for every admissible key\" applies=with dice the player holds, a server-held chain gives no promise about the dice";
+
     public static final List<Contract> UNCONDITIONAL = List.of(
             new Contract("PUBLIC", "unconditional", false,
                     "after every ride the public symbol (x/n) equals the gate colour",
