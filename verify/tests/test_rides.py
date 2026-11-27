@@ -1,6 +1,7 @@
 import copy
 import hashlib
 import unittest
+from pathlib import Path
 
 from verify import certcheck, rides
 from verify.reveal import Refused
@@ -26,6 +27,19 @@ def build_log(colours, top=b"\x11" * 32):
                     "reported": rides.realm(after, P521, P607)})
         x = after
     return {"commitment": links[0].hex(), "dice": "player", "format": "rhworld.rides/1", "n": str(N), "rides": out}
+
+
+DATA = Path(__file__).parent / "data"
+
+
+class Golden(unittest.TestCase):
+    def test_mechanics_logs_replay_byte_for_byte(self):
+        for name in ("rides-mersenne.json", "rides-rigged-1024.json", "rides-random-1024.json"):
+            out = rides.replay((DATA / name).read_bytes())
+            self.assertEqual(out, {"rides": 8, "dice": "player", "condition8": "met"}, name)
+
+    def test_mersenne_reveal_with_canonical_factor(self):
+        self.assertEqual(rides.replay((DATA / "rides-mersenne.json").read_bytes(), P521)["rides"], 8)
 
 
 class Dice(unittest.TestCase):
