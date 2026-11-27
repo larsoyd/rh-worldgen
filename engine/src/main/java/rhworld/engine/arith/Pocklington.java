@@ -13,21 +13,21 @@ public final class Pocklington {
     public static Verdict<String> check(BigInteger n, Map<String, Object> cert) {
         try {
             return checked(n, cert);
-        } catch (ClassCastException | NullPointerException | ArithmeticException e) {
+        } catch (ClassCastException | NullPointerException | ArithmeticException | NumberFormatException e) {
             return new Verdict.Refused<>("certificate malformed");
         }
     }
 
     @SuppressWarnings("unchecked")
     private static Verdict<String> checked(BigInteger n, Map<String, Object> cert) {
-        List<List<BigInteger>> factors = (List<List<BigInteger>>) cert.get("factors");
+        List<List<Object>> factors = (List<List<Object>>) cert.get("factors");
         Map<String, Object> subs = (Map<String, Object>) cert.getOrDefault("sub", Map.of());
-        Map<String, BigInteger> witnesses = (Map<String, BigInteger>) cert.get("witnesses");
+        Map<String, Object> witnesses = (Map<String, Object>) cert.get("witnesses");
         BigInteger m = n.subtract(BigInteger.ONE), f = BigInteger.ONE;
         boolean oversized = false;
-        for (List<BigInteger> qe : factors) {
-            BigInteger q = qe.get(0);
-            int e = qe.get(1).intValueExact();
+        for (List<Object> qe : factors) {
+            BigInteger q = integer(qe.get(0));
+            int e = integer(qe.get(1)).intValueExact();
             if (e < 1) return new Verdict.Refused<>("certificate malformed");
             Map<String, Object> sub = (Map<String, Object>) subs.get(q.toString());
             boolean proved = provedSmall(q) || (sub != null && q.compareTo(n) < 0 && check(q, sub) instanceof Verdict.Ok<String>);
@@ -37,13 +37,19 @@ public final class Pocklington {
         }
         if (oversized || m.mod(f).signum() != 0) return new Verdict.Refused<>("factored part does not divide n-1");
         if (f.multiply(f).compareTo(n) <= 0) return new Verdict.Refused<>("factored part too small");
-        for (List<BigInteger> qe : factors) {
-            BigInteger q = qe.get(0), a = witnesses.get(q.toString());
+        for (List<Object> qe : factors) {
+            BigInteger q = integer(qe.get(0)), a = integer(witnesses.get(q.toString()));
             if (!a.modPow(m, n).equals(BigInteger.ONE) || !a.modPow(m.divide(q), n).subtract(BigInteger.ONE).gcd(n).equals(BigInteger.ONE)) {
                 return new Verdict.Refused<>("witness fails for factor " + q);
             }
         }
         return new Verdict.Ok<>("proved");
+    }
+
+    private static BigInteger integer(Object o) {
+        if (o instanceof BigInteger b) return b;
+        if (o instanceof String s && s.matches("[0-9]+")) return new BigInteger(s);
+        throw new ClassCastException("not an integer " + o);
     }
 
     // the fixed 25 bases are exact far beyond 2^32 so below it the test is a proof

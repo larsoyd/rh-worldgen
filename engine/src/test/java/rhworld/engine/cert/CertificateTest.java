@@ -61,7 +61,7 @@ class CertificateTest {
         String json = Certificate.of(world(0)).json();
         @SuppressWarnings("unchecked")
         Map<String, Object> m = (Map<String, Object>) Json.parse(json);
-        assertEquals(List.of("deferred", "header", "not_proved", "recomputed", "theorem"), m.keySet().stream().sorted().toList());
+        assertEquals(List.of("deferred", "header", "not_proved", "recomputed", "theorem", "world_id"), m.keySet().stream().sorted().toList());
         assertEquals(json, Json.write(Json.parse(json)));
         Certificate.Report r = ok(Certificate.verify(json, Telemetry.NONE));
         assertEquals(Certificate.of(world(0)).worldId(), r.worldId());
@@ -116,6 +116,43 @@ class CertificateTest {
             }
         }
         assertEquals(8, checked);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void worldIdIsAlsoATopLevelField() {
+        Certificate cert = Certificate.of(gm(3));
+        Map<String, Object> m = (Map<String, Object>) Json.parse(cert.json());
+        assertEquals(cert.worldId(), m.get("world_id"));
+        assertEquals("refused: field mismatch world_id", Certificate.verify(edit(cert.json(), "world_id", v -> "0".repeat(64)), Telemetry.NONE).toString());
+    }
+
+    @Test
+    void noBareIntegerAboveTwoToThe53EvenInsideProofs() {
+        var np = rhworld.engine.arith.PocklingtonAccess.nested(rhworld.engine.arith.PocklingtonAccess.smoothPrime(600));
+        BigInteger p = np.getKey(), q = rhworld.engine.arith.PocklingtonAccess.smoothPrime(710);
+        PublicWorld w = ok(PublicWorld.open(p.multiply(q), Telemetry.NONE));
+        GmWorld.Proofs proofs = new GmWorld.Proofs(np.getValue(), rhworld.engine.arith.PocklingtonAccess.certificate(q));
+        if (p.compareTo(q) > 0) proofs = new GmWorld.Proofs(proofs.q(), proofs.p());
+        String json = Certificate.of(ok(GmWorld.reveal(w, p, Optional.of(proofs), Telemetry.NONE))).json();
+        java.util.List<BigInteger> big = new java.util.ArrayList<>();
+        collect(Json.parse(json), big);
+        assertEquals(List.of(), big.stream().filter(x -> x.abs().bitLength() > 53).toList());
+        assertEquals("proved", ok(Certificate.verify(json, Telemetry.NONE)).factorsStatus());
+    }
+
+    @Test
+    void integersAboveTwoToThe53BecomeStringsAtEveryDepth() {
+        BigInteger edge = BigInteger.ONE.shiftLeft(53), above = edge.add(BigInteger.ONE);
+        Object out = Certificate.safeIntegers(Map.of("a", List.of(edge, above, above.negate()), "b", Map.of("c", above), "d", "x"));
+        assertEquals("{\"a\":[9007199254740992,\"9007199254740993\",\"-9007199254740993\"],\"b\":{\"c\":\"9007199254740993\"},\"d\":\"x\"}",
+                Json.write(out));
+    }
+
+    private static void collect(Object o, java.util.List<BigInteger> out) {
+        if (o instanceof BigInteger b) out.add(b);
+        if (o instanceof Map<?, ?> m) m.values().forEach(v -> collect(v, out));
+        if (o instanceof List<?> l) l.forEach(v -> collect(v, out));
     }
 
     @Test

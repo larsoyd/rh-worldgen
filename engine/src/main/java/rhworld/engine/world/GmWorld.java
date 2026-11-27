@@ -41,6 +41,14 @@ public final class GmWorld {
         return v;
     }
 
+    public static Verdict<GmWorld> reveal(PublicWorld w, BigInteger p, BigInteger q, Optional<Proofs> proofs, Telemetry t) {
+        if (!p.multiply(q).equals(w.n())) {
+            t.event("reveal.refused", "reason", "factors do not multiply to n");
+            return new Verdict.Refused<>("factors do not multiply to n");
+        }
+        return reveal(w, p, proofs, t);
+    }
+
     private static Verdict<GmWorld> check(PublicWorld w, BigInteger factor, Optional<Proofs> proofs, Telemetry t) {
         BigInteger n = w.n();
         if (factor.compareTo(BigInteger.ONE) <= 0 || factor.compareTo(n) >= 0 || n.mod(factor).signum() != 0) {
@@ -94,6 +102,7 @@ public final class GmWorld {
         return hiddenBasis;
     }
 
+    // hidden half output for the season in mechanics only, never for a player chosen x
     public Verdict<Realm> realm(BigInteger x) {
         int a = Arith.jacobi(x, p), b = Arith.jacobi(x, q);
         if (a == 0 || b == 0) return new Verdict.Refused<>("not a unit");

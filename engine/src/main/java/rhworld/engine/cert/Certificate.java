@@ -29,6 +29,7 @@ public final class Certificate {
     public static final String SCHEMA = "rhworld.cert/1";
     public static final String ENGINE_VERSION = "0.1.0";
     public static final String PRIMALITY_TEST = "mr25-fixed-bases";
+    static final BigInteger MAX_SAFE = BigInteger.ONE.shiftLeft(53);
     public static final List<String> NOT_PROVED = List.of(
             "GRH is not checked by this certificate. It is the hypothesis of the cited paper, machine-checked only as the Lean statement named in theorem",
             "the explicit bound (log q)^2 is a published result and is not machine-checked",
@@ -44,12 +45,13 @@ public final class Certificate {
     private final String worldId;
 
     private Certificate(Map<String, Object> root) {
-        this.root = root;
-        this.json = Json.write(root);
         Map<String, Object> id = new LinkedHashMap<>();
         id.put("header", root.get("header"));
         id.put("recomputed", root.get("recomputed"));
         this.worldId = sha256(Json.write(id));
+        root.put("world_id", worldId);
+        this.root = root;
+        this.json = Json.write(root);
     }
 
     public static Certificate of(PublicWorld w) {
@@ -140,8 +142,21 @@ public final class Certificate {
         Map<String, Object> r = map("p", g.p().toString(), "q", g.q().toString(), "factors_status", g.factorsStatus(),
                 "primality_test", PRIMALITY_TEST, "g1", map("p", witness(g.g1p()), "q", witness(g.g1q())),
                 "c3_hidden", map("layers", List.of("p", "q"), "bound", g.hiddenBasis().bound(), "basis", basis(g.hiddenBasis())));
-        g.proofs().ifPresent(pr -> r.put("proofs", map("p", pr.p(), "q", pr.q())));
+        g.proofs().ifPresent(pr -> r.put("proofs", map("p", safeIntegers(pr.p()), "q", safeIntegers(pr.q()))));
         return r;
+    }
+
+    static Object safeIntegers(Object o) {
+        return switch (o) {
+            case BigInteger b when b.abs().compareTo(MAX_SAFE) > 0 -> b.toString();
+            case Map<?, ?> m -> {
+                Map<String, Object> out = new LinkedHashMap<>();
+                m.forEach((k, v) -> out.put((String) k, safeIntegers(v)));
+                yield out;
+            }
+            case List<?> l -> l.stream().map(Certificate::safeIntegers).toList();
+            default -> o;
+        };
     }
 
     private static Map<String, Object> contract(ContractId id) {

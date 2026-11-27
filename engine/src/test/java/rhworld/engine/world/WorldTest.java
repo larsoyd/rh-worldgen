@@ -93,6 +93,17 @@ class WorldTest {
     }
 
     @Test
+    void pairRevealChecksTheProductFirst() {
+        Map<String, Object> c = accepted().get(1);
+        PublicWorld w = ok(PublicWorld.open(big(c.get("n")), Telemetry.NONE));
+        BigInteger a = factor(c, 0), b = factor(c, 1);
+        assertEquals(a.min(b), ok(GmWorld.reveal(w, b, a, Optional.empty(), Telemetry.NONE)).p());
+        assertEquals("refused: factors do not multiply to n", GmWorld.reveal(w, a, b.add(BigInteger.TWO), Optional.empty(), Telemetry.NONE).toString());
+        assertEquals("refused: factors do not multiply to n", GmWorld.reveal(w, a, a, Optional.empty(), Telemetry.NONE).toString());
+        assertEquals("refused: revealed factor does not divide n", GmWorld.reveal(w, BigInteger.ONE, w.n(), Optional.empty(), Telemetry.NONE).toString());
+    }
+
+    @Test
     void revealRefusals() {
         Map<String, Object> c = accepted().get(0);
         PublicWorld w = ok(PublicWorld.open(big(c.get("n")), Telemetry.NONE));
