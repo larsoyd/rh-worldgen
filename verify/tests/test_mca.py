@@ -169,6 +169,21 @@ class Decode(unittest.TestCase):
                   (-16, 3): {"minecraft:mineshaft": {"id": "INVALID"}}}
         self.assertEqual(mca.foreign_starts(starts, 16), [(1, 0, "minecraft:ruined_portal")])
 
+    def test_provenance(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            world = Path(tmp)
+            self.assertEqual(mca.provenance(world), "refused: no provenance file")
+            (world / "rhworld-provenance.txt").write_text("rev=8b0951d dirty=yes scenario=hashdump\n")
+            self.assertEqual(mca.provenance(world), "refused: world built from a dirty tree rev=8b0951d")
+            (world / "rhworld-provenance.txt").write_text("rev=8b0951d dirty=no scenario=hashdump level_type=x seed=1\n")
+            self.assertEqual(mca.provenance(world), "rev=8b0951d")
+            (world / "rhworld-provenance.txt").write_text("rev=unknown dirty=no scenario=hashdump\n")
+            self.assertEqual(mca.provenance(world), "refused: provenance without rev")
+            (world / "rhworld-provenance.txt").write_text("dirty=no\n")
+            self.assertEqual(mca.provenance(world), "refused: provenance without rev")
+
     def test_absent_chunk_is_skipped(self):
         self.assertEqual(list(mca.read_region(bytes(8192))), [])
 

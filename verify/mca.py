@@ -253,7 +253,23 @@ def dump_hashes(log):
     return {(m[1], int(m[2]), int(m[3])): (int(m[4]), m[5]) for m in pattern.finditer(Path(log).read_text())}
 
 
+def provenance(world):
+    path = Path(world) / "rhworld-provenance.txt"
+    if not path.is_file():
+        return "refused: no provenance file"
+    fields = dict(re.findall(r"(\w+)=(\S+)", path.read_text()))
+    if not re.fullmatch(r"[0-9a-f]{7,40}", fields.get("rev", "")):
+        return "refused: provenance without rev"
+    if fields.get("dirty") != "no":
+        return f"refused: world built from a dirty tree rev={fields['rev']}"
+    return f"rev={fields['rev']}"
+
+
 def main(world, log):
+    origin = provenance(world)
+    print(f"[mca] provenance {origin}")
+    if origin.startswith("refused"):
+        return 1
     mine, empty, placement = world_hashes(world)
     for level, (loose, wrong, layout, foreign) in placement.items():
         print(f"[mca] level={level} blocks_outside_pieces={loose} shrine_mismatches={len(wrong)} first={wrong[:4]} "
