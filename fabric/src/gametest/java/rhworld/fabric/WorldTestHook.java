@@ -35,6 +35,7 @@ public final class WorldTestHook implements ModInitializer {
             case "terrain" -> WorldScenarios::terrain;
             case "realms" -> WorldScenarios::realms;
             case "vanilla" -> WorldScenarios::vanilla;
+            case "hubs" -> WorldScenarios::hubs;
             default -> ctx -> ctx.report().fail("scenario", "unknown " + name);
         };
     }

@@ -1,0 +1,4 @@
+{
+  "placement": {"type": "rhworld:origin"},
+  "structures": [{"structure": "rhworld:hub", "weight": 1}]
+}
