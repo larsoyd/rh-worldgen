@@ -9,6 +9,7 @@ from pathlib import Path
 
 NAMESPACE = "rhworld:"
 DEFAULTS = {"rhworld:shrine": {"prime_index": "0"}}
+HUB_CLEARANCE = 16
 
 
 class Reader:
@@ -153,10 +154,46 @@ def ring_position(i, radius=48, count=25):
     return java_round(radius * math.cos(a)), java_round(radius * math.sin(a))
 
 
+def pad_top(blocks):
+    column = [y for x, y, z, st in blocks if st == "rhworld:hub_stone" and x == 0 and z == 0]
+    return max(column) + 1 if column else None
+
+
+def foreign_starts(starts, radius):
+    return sorted((cx, cz, key) for (cx, cz), found in starts.items() for key, start in found.items()
+                  if not key.startswith(NAMESPACE) and start.get("id") != "INVALID"
+                  and abs(cx) <= radius and abs(cz) <= radius)
+
+
+def column_ok(ys, top, depth=24):
+    return bool(ys) and max(ys) == top and len(ys) == top - min(ys) + 1 and len(ys) <= depth
+
+
+def foundation_errors(blocks):
+    stone = {}
+    for x, y, z, st in blocks:
+        if st == "rhworld:hub_stone":
+            stone.setdefault((x, z), set()).add(y)
+    errors = []
+    oy = pad_top(blocks)
+    for x in range(-9, 10):
+        for z in range(-9, 10):
+            ys = {y for y in stone.get((x, z), ()) if oy is not None and y < oy}
+            if not column_ok(ys, oy - 1 if oy else None):
+                errors.append(f"hub column ({x}, {z}) not contiguous to {oy - 1 if oy else None}")
+    for sx, sy, sz, st in blocks:
+        if st.startswith("rhworld:shrine"):
+            for dx in (-1, 0, 1):
+                for dz in (-1, 0, 1):
+                    ys = {y for y in stone.get((sx + dx, sz + dz), ()) if y < sy}
+                    if not column_ok(ys, sy - 1):
+                        errors.append(f"shrine {shrine_index(st)} column ({sx + dx}, {sz + dz}) not contiguous to {sy - 1}")
+    return errors
+
+
 def layout_errors(blocks):
     errors = []
-    pad = [y for x, y, z, st in blocks if st == "rhworld:hub_stone" and abs(x) <= 9 and abs(z) <= 9]
-    oy = min(pad) + 1 if pad else None
+    oy = pad_top(blocks)
     frame = {(dy, dz) for dy in (1, 2, 3) for dz in (-1, 0, 1)}
     for name, gx in (("gate_warm", -6), ("gate_cold", 6)):
         gate = [(x, y, z) for x, y, z, st in blocks if st == f"rhworld:{name}"]
@@ -192,12 +229,14 @@ def world_hashes(world):
     for level, folder in region_dirs(Path(world)):
         if not folder.is_dir():
             raise FileNotFoundError(f"missing region folder level={level} path={folder}")
-        every, pieces = [], []
+        every, pieces, starts = [], [], {}
         for f in sorted(folder.glob("r.*.mca")):
             for chunk in read_region(f.read_bytes()):
                 blocks = rhworld_blocks(chunk)
                 every += blocks
-                for key, start in chunk.get("structures", {}).get("starts", {}).items():
+                found = chunk.get("structures", {}).get("starts", {})
+                starts[(chunk["xPos"], chunk["zPos"])] = found
+                for key, start in found.items():
                     if key.startswith(NAMESPACE):
                         pieces += start.get("Children", [])
                 if blocks:
@@ -205,7 +244,7 @@ def world_hashes(world):
                 else:
                     empty += 1
         placement[level] = (len(outside(every, [p["BB"] for p in pieces])), shrine_mismatches(every, pieces),
-                            layout_errors(every))
+                            layout_errors(every) + foundation_errors(every), foreign_starts(starts, HUB_CLEARANCE))
     return out, empty, placement
 
 
@@ -216,9 +255,9 @@ def dump_hashes(log):
 
 def main(world, log):
     mine, empty, placement = world_hashes(world)
-    for level, (loose, wrong, layout) in placement.items():
+    for level, (loose, wrong, layout, foreign) in placement.items():
         print(f"[mca] level={level} blocks_outside_pieces={loose} shrine_mismatches={len(wrong)} first={wrong[:4]} "
-              f"layout_errors={len(layout)} first_layout={layout[:2]}")
+              f"layout_errors={len(layout)} first_layout={layout[:2]} foreign_starts={len(foreign)} first_foreign={foreign[:2]}")
     theirs = dump_hashes(log)
     missing = sorted(set(theirs) - set(mine))
     extra = sorted(set(mine) - set(theirs))
