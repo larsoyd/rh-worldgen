@@ -10,6 +10,7 @@ import net.minecraft.world.level.levelgen.structure.StructureType;
 public final class HubStructure extends Structure {
     public static final MapCodec<HubStructure> CODEC = simpleCodec(HubStructure::new);
     public static final int SHRINE_RADIUS = 48;
+    public static final int CLEAR_CHUNKS = 16;
 
     public HubStructure(StructureSettings settings) {
         super(settings);
@@ -32,9 +33,11 @@ public final class HubStructure extends Structure {
         }));
     }
 
+    // above the sea so a pad never sits under water
     private static int surface(GenerationContext ctx, int x, int z) {
-        return ctx.chunkGenerator().getFirstOccupiedHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG,
+        int top = ctx.chunkGenerator().getFirstOccupiedHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG,
                 ctx.heightAccessor(), ctx.randomState());
+        return Math.max(top, ctx.chunkGenerator().getSeaLevel() + 1);
     }
 
     @Override

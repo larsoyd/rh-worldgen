@@ -1,4 +1,10 @@
 {
   "generator.rhworld.wild": "RHWorld: Wild Gates",
-  "generator.rhworld.wild_rigged": "RHWorld: Wild Gates (rigged key)"
+  "generator.rhworld.wild_rigged": "RHWorld: Wild Gates (rigged key)",
+  "block.rhworld.hub_stone": "Hub Stone",
+  "block.rhworld.gate_warm": "Warm Wild Gate",
+  "block.rhworld.gate_cold": "Cold Wild Gate",
+  "block.rhworld.sigil": "Sigil Pedestal",
+  "block.rhworld.shrine": "Prime Shrine",
+  "advancements.rhworld.concord.title": "Concord"
 }

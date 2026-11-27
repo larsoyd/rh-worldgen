@@ -3,6 +3,8 @@ package rhworld.fabric;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -23,11 +25,14 @@ public final class RhWorldMod implements ModInitializer {
     public void onInitialize() {
         Registry.register(BuiltInRegistries.CHUNK_GENERATOR, id("hybrid"), HybridGenerator.CODEC);
         RhBlocks.init();
+        PlayerData.init();
         Registry.register(BuiltInRegistries.STRUCTURE_TYPE, id("hub"), HUB_TYPE);
         Registry.register(BuiltInRegistries.STRUCTURE_PIECE, id("hub"), HUB_PIECE);
         Registry.register(BuiltInRegistries.STRUCTURE_PIECE, id("shrine"), SHRINE_PIECE);
         Registry.register(BuiltInRegistries.STRUCTURE_PLACEMENT, id("origin"), OriginPlacement.CODEC);
         ServerLifecycleEvents.SERVER_STARTING.register(LoadGuard::check);
+        ServerPlayerEvents.AFTER_RESPAWN.register(Lifecycle::afterRespawn);
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> Lifecycle.join(handler.player));
         CommandRegistrationCallback.EVENT.register((dispatcher, registries, env) -> RhCommands.register(dispatcher));
     }
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# usage: worldtest.sh <scenario> <level-type> [seed] [limit], env RHWORLD_KEY ORDER THREADS
+# usage: worldtest.sh <scenario> <level-type> [seed] [limit], env RHWORLD_KEY ORDER THREADS KEEP
 set -uo pipefail
 scenario=${1:?scenario}
 level_type=${2:?level type}
@@ -15,7 +15,8 @@ unset DISPLAY WAYLAND_DISPLAY
 [ "$(ulimit -c)" = 0 ] || { echo "[rhworld-test] verdict=fail reason=core-limit-not-zero"; exit 2; }
 
 mkdir -p "$run"
-rm -rf "$run/world" "$run/logs" "$run/crash-reports" "$run/config/rhworld"
+[ -n "${RHWORLD_KEEP:-}" ] || rm -rf "$run/world"
+rm -rf "$run/logs" "$run/crash-reports" "$run/config/rhworld"
 if [ -n "${RHWORLD_KEY:-}" ]; then
     [ -f "$RHWORLD_KEY" ] || { echo "[rhworld-test] verdict=fail reason=key-file-missing"; exit 2; }
     mkdir -p "$run/config/rhworld"
@@ -33,6 +34,8 @@ spawn-protection=0
 sync-chunk-writes=true
 EOF
 
+rev=$(git -C "$here" rev-parse --short HEAD 2>/dev/null || echo unknown)
+dirty=$([ -z "$(git -C "$here" status --porcelain -- fabric engine mechanics 2>/dev/null)" ] && echo no || echo yes)
 start=$(date +%s)
 setsid timeout "$limit" "$here/gradlew" -p "$here" :fabric:runWorldTest --no-daemon -q \
     "-Prhworld.worldtest=$scenario" "-Prhworld.order=${RHWORLD_ORDER:-0}" \
@@ -51,6 +54,8 @@ rc=$?
 secs=$(( $(date +%s) - start ))
 
 grep -a '\[rhworld' "$log" | sed 's/.*\]: //'
+[ -d "$run/world" ] && printf 'rev=%s dirty=%s scenario=%s level_type=%s seed=%s\n' "$rev" "$dirty" "$scenario" "$level_type" "$seed" >"$run/world/rhworld-provenance.txt"
+echo "[rhworld-test] provenance rev=$rev dirty=$dirty"
 leak=0
 if [ -n "${RHWORLD_KEY:-}" ]; then
     scan=("$log")

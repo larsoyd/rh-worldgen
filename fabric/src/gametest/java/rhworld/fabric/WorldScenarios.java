@@ -91,6 +91,24 @@ final class WorldScenarios {
             ctx.report().check(inside.shrinePrimes.equals(want) && inside.shrines == 25, "hub_shrines",
                     "level=" + id + " shrines=" + inside.shrines + " distinct=" + inside.shrinePrimes.size());
             var pieces = start.getPieces().stream().map(net.minecraft.world.level.levelgen.structure.StructurePiece::getBoundingBox).toList();
+            var placed = new java.util.TreeMap<Integer, Integer>();
+            int wrong = 0;
+            for (var piece : start.getPieces()) {
+                if (!(piece instanceof HubPieces.Shrine sh)) continue;
+                var state = level.getBlockState(sh.origin());
+                int got = state.is(RhBlocks.SHRINE) ? state.getValue(ShrineBlock.PRIME_INDEX) : -1;
+                placed.merge(sh.index(), 1, Integer::sum);
+                if (got != sh.index()) {
+                    wrong++;
+                    if (wrong <= 3) System.out.println("[rhworld-test] shrine_mismatch level=" + id + " piece=" + sh.index()
+                            + " at=" + sh.origin().toShortString() + " block_index=" + got);
+                }
+            }
+            boolean eachOnce = placed.size() == 25 && placed.values().stream().allMatch(c -> c == 1)
+                    && placed.firstKey() == 0 && placed.lastKey() == 24;
+            ctx.report().check(wrong == 0 && eachOnce, "shrine_piece_holds_its_prime", "level=" + id + " wrong=" + wrong + " pieces=" + placed.size());
+            int foreign = foreignStarts(level, HubStructure.CLEAR_CHUNKS);
+            ctx.report().check(foreign == 0, "no_vanilla_structures_near_hub", "level=" + id + " radius=" + HubStructure.CLEAR_CHUNKS + " found=" + foreign);
             int stray = strayBlocks(level, pieces, 8);
             ctx.report().check(stray == 0, "nothing_outside_hub", "level=" + id + " chunks=17x17 found=" + stray);
         }
@@ -142,5 +160,19 @@ final class WorldScenarios {
             }
         }
         return stray;
+    }
+
+    static int foreignStarts(ServerLevel level, int radius) {
+        int found = 0;
+        for (int cx = -radius; cx <= radius; cx++) for (int cz = -radius; cz <= radius; cz++) {
+            var chunk = level.getChunk(cx, cz, net.minecraft.world.level.chunk.status.ChunkStatus.STRUCTURE_STARTS, true);
+            for (var e : chunk.getAllStarts().entrySet()) {
+                if (!e.getValue().isValid() || e.getKey() instanceof HubStructure) continue;
+                found++;
+                System.out.println("[rhworld-test] foreign_start level=" + level.dimension().identifier() + " cx=" + cx + " cz=" + cz
+                        + " structure=" + level.registryAccess().lookupOrThrow(Registries.STRUCTURE).getKey(e.getKey()));
+            }
+        }
+        return found;
     }
 }

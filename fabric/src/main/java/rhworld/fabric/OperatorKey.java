@@ -8,47 +8,21 @@ import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
-import java.util.Set;
 
+// reads the factors only, every check on them is the engine's
 public final class OperatorKey {
-    private static volatile OperatorKey loaded;
+    public record Loaded(Optional<BigInteger[]> factors, Optional<String> refusal) {}
 
-    private final BigInteger n;
-    private final BigInteger p;
-    private final BigInteger q;
+    private OperatorKey() {}
 
-    private OperatorKey(BigInteger n, BigInteger p, BigInteger q) {
-        this.n = n;
-        this.p = p;
-        this.q = q;
-    }
-
-    public static Optional<OperatorKey> current() {
-        return Optional.ofNullable(loaded);
-    }
-
-    public BigInteger n() { return n; }
-    public BigInteger p() { return p; }
-    public BigInteger q() { return q; }
-
-    @Override
-    public String toString() {
-        return "OperatorKey[bits=" + n.bitLength() + "]";
-    }
-
-    static String load(Path file, Set<BigInteger> moduli) {
-        loaded = null;
-        if (!Files.exists(file)) return "ok";
-        OperatorKey key;
+    static Loaded read(Path file) {
+        if (!Files.exists(file)) return new Loaded(Optional.empty(), Optional.empty());
         try {
             JsonObject json = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
-            key = new OperatorKey(number(json, "n"), number(json, "p"), number(json, "q"));
+            return new Loaded(Optional.of(new BigInteger[] {number(json, "p"), number(json, "q")}), Optional.empty());
         } catch (IOException | JsonParseException | IllegalStateException | NumberFormatException e) {
-            return "refused: key file unreadable";
+            return new Loaded(Optional.empty(), Optional.of("refused: key file unreadable"));
         }
-        if (!key.p.multiply(key.q).equals(key.n) || !moduli.equals(Set.of(key.n))) return "refused: key file mismatch";
-        loaded = key;
-        return "ok";
     }
 
     private static BigInteger number(JsonObject json, String field) {

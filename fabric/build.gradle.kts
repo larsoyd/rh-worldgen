@@ -20,6 +20,8 @@ dependencies {
     implementation("net.fabricmc.fabric-api:fabric-api:0.167.0+26.3")
     implementation(project(":engine"))
     include(project(":engine"))
+    implementation(project(":mechanics"))
+    include(project(":mechanics"))
 }
 
 fabricApi {
@@ -27,7 +29,7 @@ fabricApi {
         createSourceSet = true
         modId = "rhworld-test"
         enableGameTests = true
-        enableClientGameTests = false
+        enableClientGameTests = true
         eula = true
     }
 }
@@ -52,6 +54,9 @@ loom {
             vmArg("-Drhworld.order=" + (findProperty("rhworld.order") ?: "0"))
             findProperty("rhworld.threads")?.let { vmArg("-Dmax.bg.threads=$it") }
             ideConfigGenerated(false)
+        }
+        matching { it.name == "clientGameTest" }.configureEach {
+            findProperty("rhworld.key")?.let { vmArg("-Drhworld.key=$it") }
         }
     }
 }

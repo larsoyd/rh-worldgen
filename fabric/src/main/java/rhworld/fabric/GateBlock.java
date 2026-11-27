@@ -7,6 +7,7 @@ import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import rhworld.mechanics.Colour;
 
 public final class GateBlock extends Block {
     private final Colour colour;
@@ -25,6 +26,4 @@ public final class GateBlock extends Block {
             InsideBlockEffectApplier effects, boolean intersects) {
         if (entity instanceof ServerPlayer player) GateHandler.enter(player, colour);
     }
-
-    public enum Colour { WARM, COLD }
 }
