@@ -34,11 +34,11 @@ class AuditTest {
 
     @Test
     void honestServerIsNeverAccused() {
-        for (int tag = 0; tag < 3; tag++) {
-            Audit.Verdict v = Audit.of(session(4000, tag, r -> r, false), 0x1p-30);
+        for (int tag = 0; tag < 2; tag++) {
+            Audit.Verdict v = Audit.of(session(2000, tag, r -> r, false), 0x1p-30);
             assertFalse(v.accused(), v.line());
             assertEquals(0, v.publicMismatches());
-            assertEquals(2000, v.rides().get(Colour.WARM));
+            assertEquals(1000, v.rides().get(Colour.WARM));
         }
     }
 

@@ -99,6 +99,19 @@ class WildGateTest {
     }
 
     @Test
+    void rideFitsTheServerBudget() {
+        long[][] dice = new long[200][];
+        for (int r = 0; r < dice.length; r++) dice[r] = Dice.bits(seed(5), r, RIGGED_GATE.size());
+        BigInteger x = BigInteger.ONE;
+        for (int r = 0; r < 50; r++) x = RIGGED_GATE.ride(x, Colour.WARM, dice[r]);
+        long start = System.nanoTime();
+        for (long[] e : dice) x = RIGGED_GATE.ride(x, Colour.COLD, e);
+        double ms = (System.nanoTime() - start) / 1e6 / dice.length;
+        System.out.println("[gate] bits=1024 size=" + RIGGED_GATE.size() + " rides=" + dice.length + " ride_ms=" + ms);
+        assertTrue(ms <= 5, "ride_ms=" + ms);
+    }
+
+    @Test
     void wrongDiceLengthIsRefused() {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
                 () -> RIGGED_GATE.ride(BigInteger.ONE, Colour.WARM, new long[3]));
