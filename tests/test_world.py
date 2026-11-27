@@ -114,10 +114,11 @@ class Ledger(unittest.TestCase):
         g1, g2 = g1_witness(p, n), g2_witness(n)
         self.assertNotEqual(g1, g2)
         px = np.asarray(render_ledger(n, p, primes, [(g1, G1_MARK), (g2, G2_MARK)]))
+        board = np.asarray(render_gm(layer(n, 20), layer(p, 20), marks=[]))
         cell, height = LEDGER_CELL, LEDGER_HEIGHT
         self.assertEqual(px.shape, (height + 2 * cell, cell * len(primes), 3))
         for k, l in enumerate(primes):
-            want = CLASSES[(jacobi(l, n) == -1) * 2 + (jacobi(l, p) == -1)].rgb
+            want = tuple(board[divmod(l - 1, 20)])
             self.assertEqual(tuple(px[height // 2, k * cell + cell // 2]), want, l)
             row1 = tuple(px[height + cell // 2, k * cell + cell // 2])
             row2 = tuple(px[height + cell + cell // 2, k * cell + cell // 2])
