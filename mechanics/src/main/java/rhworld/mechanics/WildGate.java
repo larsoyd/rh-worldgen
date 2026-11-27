@@ -5,6 +5,7 @@ import rhworld.engine.arith.Arith;
 import rhworld.engine.arith.Budget;
 import rhworld.engine.arith.OddModulus;
 import rhworld.engine.arith.Primes;
+import rhworld.engine.contract.Verdict;
 
 public final class WildGate {
     private final BigInteger n;
@@ -45,36 +46,23 @@ public final class WildGate {
 
     public BigInteger ride(BigInteger x, Colour colour, long[] e) {
         int w = requireWitness();
-        if (e.length != words(primes.length))
-            throw new IllegalArgumentException("refused: dice length words=" + e.length + " expected=" + words(primes.length));
-        int tail = primes.length & 63;
-        if (tail != 0 && e[e.length - 1] >>> tail != 0)
-            throw new IllegalArgumentException("refused: dice bits past the gate size size=" + primes.length);
         if (x.signum() <= 0 || x.compareTo(n) >= 0 || Arith.jacobi(x, n) == 0)
             throw new IllegalArgumentException("refused: attunement not a unit below n");
-        long[] bits = e.clone();
-        if (Colour.ofJacobi(Arith.jacobi(x, n)) == colour == (parity(bits) == 1)) bits[w >>> 6] ^= 1L << (w & 63);
-        return x.multiply(product(bits)).mod(n);
+        BigInteger y = switch (Arith.subsetProduct(e, primes, n)) {
+            case Verdict.Ok<BigInteger> ok -> ok.value();
+            case Verdict.Refused<BigInteger> r -> throw new IllegalArgumentException(r.toString());
+        };
+        if (Colour.ofJacobi(Arith.jacobi(x, n)) == colour == (parity(e) == 1)) {
+            BigInteger step = BigInteger.valueOf(primes[w]);
+            y = y.multiply((e[w >>> 6] >>> (w & 63) & 1) == 1 ? step.modInverse(n) : step).mod(n);
+        }
+        return x.multiply(y).mod(n);
     }
 
     private int parity(long[] bits) {
         int c = 0;
         for (int i = 0; i < bits.length; i++) c += Long.bitCount(bits[i] & cold[i]);
         return c & 1;
-    }
-
-    private BigInteger product(long[] bits) {
-        BigInteger acc = BigInteger.ONE;
-        long batch = 1;
-        for (int i = 0; i < primes.length; i++) {
-            if ((bits[i >>> 6] >>> (i & 63) & 1) == 0) continue;
-            if (batch > Long.MAX_VALUE / primes[i]) {
-                acc = acc.multiply(BigInteger.valueOf(batch)).mod(n);
-                batch = 1;
-            }
-            batch *= primes[i];
-        }
-        return acc.multiply(BigInteger.valueOf(batch)).mod(n);
     }
 
     private int requireWitness() {

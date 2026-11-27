@@ -115,11 +115,11 @@ class WildGateTest {
     void wrongDiceLengthIsRefused() {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
                 () -> RIGGED_GATE.ride(BigInteger.ONE, Colour.WARM, new long[3]));
-        assertEquals("refused: dice length words=3 expected=654", e.getMessage());
+        assertEquals("refused: bits do not match primes words=3 primes=41816", e.getMessage());
         long[] dirty = new long[654];
         dirty[653] = 1L << 63;
         e = assertThrows(IllegalArgumentException.class, () -> RIGGED_GATE.ride(BigInteger.ONE, Colour.WARM, dirty));
-        assertEquals("refused: dice bits past the gate size size=41816", e.getMessage());
+        assertEquals("refused: bit set beyond primes index=41855", e.getMessage());
     }
 
     @Test
