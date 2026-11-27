@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.math.BigInteger;
+import rhworld.engine.Golden;
 import java.util.Random;
 import java.util.SplittableRandom;
 import org.junit.jupiter.api.Test;

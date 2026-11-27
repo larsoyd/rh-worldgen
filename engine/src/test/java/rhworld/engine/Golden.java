@@ -1,4 +1,4 @@
-package rhworld.engine.arith;
+package rhworld.engine;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -8,13 +8,13 @@ import java.util.List;
 import java.util.Map;
 import rhworld.engine.json.Json;
 
-final class Golden {
+public final class Golden {
     private static Map<String, Object> data;
 
     private Golden() {}
 
     @SuppressWarnings("unchecked")
-    static synchronized <T> List<T> list(String key) {
+    public static synchronized <T> List<T> list(String key) {
         if (data == null) {
             try (InputStream in = Golden.class.getResourceAsStream("/golden/oracle.json")) {
                 if (in == null) throw new IllegalStateException("golden vectors missing on test classpath");
