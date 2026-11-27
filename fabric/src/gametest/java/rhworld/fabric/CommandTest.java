@@ -58,8 +58,9 @@ public final class CommandTest {
         Session.set(null);
         helper.assertTrue(out.contains("id=SHRINE label=unconditional grh=no kind=adapter, not an engine contract"), "shrine line missing: " + out);
         helper.assertTrue(out.contains("id=HUBS ") && out.contains("id=DICE "), "hub and dice items missing: " + out);
-        helper.assertTrue(out.contains("gate guarantee basis=RHW-C3 v1 statement=\"colour as asked, hidden realm exactly uniform given the colour, for every admissible key\""),
-                "gate guarantee missing: " + out);
+        helper.assertTrue(out.contains("gate guarantee basis=RHW-C3 v1 statement=\"colour as asked, and an honest report of the hidden realm is exactly uniform"
+                + " given the colour, for every key that passes the client checks and later the reveal check\""), "gate guarantee missing: " + out);
+        helper.assertTrue(out.contains("a single ride can still be misreported within its colour"), "gate limits missing: " + out);
         helper.assertTrue(out.contains("contract=RHW-C1 v1") && out.contains("contract=RHW-C3 v1"), "engine contracts missing: " + out);
         helper.assertTrue(out.contains("label=LEAN ref=LFunction_ne_zero_of_half_lt_re"), "lean chain missing: " + out);
         helper.assertTrue(out.contains("checked_by=recomputed.c1.trial_limit"), "hypotheses missing: " + out);
