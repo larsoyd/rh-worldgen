@@ -80,7 +80,7 @@ def read_region(raw):
 
 def unpack(longs, bits, count):
     per, mask = 64 // bits, (1 << bits) - 1
-    return [((longs[i // per] & (1 << 64) - 1) >> (i % per * bits)) & mask for i in range(count)]
+    return [(longs[i // per] >> (i % per * bits)) & mask for i in range(count)]
 
 
 def state_string(name, props):
@@ -127,12 +127,17 @@ def outside(blocks, boxes):
     return [b for b in blocks if not any(inside(b, box) for box in boxes)]
 
 
+def shrine_index(state):
+    match = re.search(r"prime_index=(\d+)", state)
+    return int(match[1]) if match else None
+
+
 def shrine_mismatches(blocks, pieces):
     out = []
     for piece in pieces:
         if piece["id"] != "rhworld:shrine":
             continue
-        found = [int(b[3].split("prime_index=")[1].rstrip("]")) for b in blocks
+        found = [shrine_index(b[3]) for b in blocks
                  if b[3].startswith("rhworld:shrine") and inside(b, piece["BB"])]
         if found != [piece["prime_index"]]:
             out.append((piece["prime_index"], found))
@@ -164,9 +169,10 @@ def layout_errors(blocks):
         errors.append(f"sigil at {sigil}")
     for x, _, z, st in blocks:
         if st.startswith("rhworld:shrine"):
-            i = int(st.split("prime_index=")[1].rstrip("]"))
-            if (x, z) != ring_position(i):
-                errors.append(f"shrine {i} at ({x}, {z}) expected {ring_position(i)}")
+            i = shrine_index(st)
+            want = ring_position(i) if i is not None else None
+            if (x, z) != want:
+                errors.append(f"shrine {i} at ({x}, {z}) expected {want}")
     return errors
 
 
