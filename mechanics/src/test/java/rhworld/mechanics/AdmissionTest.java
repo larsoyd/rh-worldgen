@@ -1,9 +1,11 @@
 package rhworld.mechanics;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.math.BigInteger;
 import java.util.Optional;
+import java.util.OptionalLong;
 import org.junit.jupiter.api.Test;
 import rhworld.engine.contract.Verdict;
 import rhworld.engine.telemetry.Telemetry;
@@ -22,6 +24,22 @@ class AdmissionTest {
         Season.Player player = season.join(new SeedChain(new byte[32], 2).commitment(), Custody.PLAYER);
         assertEquals(Realm.HEARTH, season.realm(player));
         assertEquals(RIGGED.modulus(), season.modulus());
+    }
+
+    @Test
+    void seasonReplayNamesTheFirstFalseReport() {
+        Season season = ((Verdict.Ok<Season>) Season.reveal(RIGGED.modulus(), RIGGED.p(), RIGGED.q(), Telemetry.NONE)).value();
+        SeedChain c = new SeedChain(new byte[32], 6);
+        Season.Player player = season.join(c.commitment(), Custody.PLAYER);
+        for (int r = 0; r < 6; r++) season.ride(player, r % 2 == 0 ? Colour.WARM : Colour.COLD, c.opening(r));
+        assertEquals(OptionalLong.empty(), season.replay(player.log()));
+        RideLog lie = new RideLog(player.log().modulus(), player.log().commitment(), Custody.PLAYER);
+        for (Ride r : player.log().rides())
+            lie.add(r.index() == 3 ? new Ride(r.index(), r.colour(), r.opening(), r.before(), r.after(), r.reported().plus(Realm.EMBER)) : r);
+        assertEquals(OptionalLong.of(3), season.replay(lie));
+        Season other = new Season(Keys.sample("random-1024"));
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> other.replay(player.log()));
+        assertEquals("refused: log modulus differs from the revealed key", e.getMessage());
     }
 
     @Test
