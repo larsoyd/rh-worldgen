@@ -179,6 +179,8 @@ class Decode(unittest.TestCase):
             self.assertEqual(mca.provenance(world), "refused: world built from a dirty tree rev=8b0951d")
             (world / "rhworld-provenance.txt").write_text("rev=8b0951d dirty=no scenario=hashdump level_type=x seed=1\n")
             self.assertEqual(mca.provenance(world), "rev=8b0951d")
+            (world / "rhworld-provenance.txt").write_text("rev=unknown dirty=no scenario=hashdump\n")
+            self.assertEqual(mca.provenance(world), "refused: provenance without rev")
             (world / "rhworld-provenance.txt").write_text("dirty=no\n")
             self.assertEqual(mca.provenance(world), "refused: provenance without rev")
 

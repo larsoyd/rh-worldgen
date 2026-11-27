@@ -258,7 +258,7 @@ def provenance(world):
     if not path.is_file():
         return "refused: no provenance file"
     fields = dict(re.findall(r"(\w+)=(\S+)", path.read_text()))
-    if "rev" not in fields:
+    if not re.fullmatch(r"[0-9a-f]{7,40}", fields.get("rev", "")):
         return "refused: provenance without rev"
     if fields.get("dirty") != "no":
         return f"refused: world built from a dirty tree rev={fields['rev']}"
