@@ -40,11 +40,12 @@ If a scan ever ran past it, the generator would return `refused: budget exceeded
    `LFunction_eq_zero_re_of_isPrimitive`.
 2. **Published, not machine-checked.** Y. Lamzouri, X. Li and K. Soundararajan, *Conditional bounds for the least
    quadratic non-residue and related problems*, Math. Comp. 84 (2015), Theorem 1.1, part (2). Assume GRH, let
-   `q >= 3000`, and let `H` be a proper subgroup of the units mod `q`. If `q` has no prime factor below `(log q)^2`,
-   then some prime `l <= (log q)^2` is not in `H`. A 2017 corrigendum to the paper was not consulted here. The paper
+   `m >= 3000`, and let `H` be a proper subgroup of the units mod `m`. If `m` has no prime factor below `(log m)^2`,
+   then some prime `l <= (log m)^2` is not in `H`. (The paper calls the modulus `q`. It is renamed here because `q` is
+   a factor of `n`.) A 2017 corrigendum to the paper was not consulted here. The paper
    says its fix touches only Theorems 1.2 and 1.3. Bach (1990) proved the first explicit bound of this kind. Its
    constants are quoted in this paper and are not used here.
-3. **Applied here,** with `q = n`. The client checks guarantee `n >= 3000` and that `n` has no prime factor up to
+3. **Applied here,** with `m = n`. The client checks guarantee `n >= 3000` and that `n` has no prime factor up to
    `B >= floor((ln n)^2)`. This is the theorem's hypothesis, and it also makes every tile up to `B` coprime to `n`. The
    residues mod `n` with `(x/p) = +1` form a proper subgroup of the units mod `n`. So do those with `(x/q) = +1`, and
    those with `(x/n) = +1` (this needs `n` not to be a square). Each subgroup misses a prime `l <= (ln n)^2`. Since `l`
@@ -102,6 +103,7 @@ The generator returns `refused: <reason>` and exit code 2, and writes no maps, w
 | `n` a probable prime | `no hidden layer` |
 | a prime factor of `n` at most `max(B, S^2)` (this covers the theorem's hypothesis and makes every tile coprime to `n`) | `small factor` |
 | a key file whose `p q` is not `n` | `gm file factors do not match n` |
+| a key file factor that is not a probable prime | `gm factor not prime` |
 | a witness scan passing `B(n)` without a -1 tile | `budget exceeded` |
 
 ## Map legend
