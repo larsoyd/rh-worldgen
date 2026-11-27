@@ -249,8 +249,9 @@ Derivation (ours):
 - Hiding the hidden layer rests on the hardness of factoring, not on the Riemann hypothesis.
 
 ### The codex limit
-Each gate ride lets players learn one linear equation in the hidden bits (l/p) of the primes l up to B. A portal that
-multiplies by a single prime l reveals (l/p) directly, one bit per ride: 25 such rides give every l up to 97. After about
+Each gate ride lets players learn one linear equation in the hidden bits (l/p) of the primes l up to B. Shrines are inert in v1: no
+portal multiplies by a single prime. If one did, each ride would reveal one bit (l/p) directly, and 25 rides would give
+every l up to 97. After about
 |S| independent equations (41816 at 1024 bits) players know all of them. Then the hidden bit of every tile whose prime
 factors are all at most B is public, and that includes every tile of the prefix 1..B. Recovering p itself from these bits is an open
 problem. We know no algorithm for it, but we do not claim it is impossible. A season should end well before |S| rides
