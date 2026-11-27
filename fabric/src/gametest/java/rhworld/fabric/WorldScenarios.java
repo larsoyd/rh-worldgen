@@ -90,8 +90,9 @@ final class WorldScenarios {
             var want = java.util.Arrays.stream(PRIMES_TO_97).boxed().collect(java.util.stream.Collectors.toSet());
             ctx.report().check(inside.shrinePrimes.equals(want) && inside.shrines == 25, "hub_shrines",
                     "level=" + id + " shrines=" + inside.shrines + " distinct=" + inside.shrinePrimes.size());
-            var outside = countOurs(level, box.maxX() + 1, box.maxX() + 48, box.minZ(), box.maxZ());
-            ctx.report().check(outside.total == 0, "nothing_outside_hub", "level=" + id + " found=" + outside.total);
+            var pieces = start.getPieces().stream().map(net.minecraft.world.level.levelgen.structure.StructurePiece::getBoundingBox).toList();
+            int stray = strayBlocks(level, pieces, 8);
+            ctx.report().check(stray == 0, "nothing_outside_hub", "level=" + id + " chunks=17x17 found=" + stray);
         }
         ctx.report().check(levels == 4 || levels == 0, "hub_levels", "count=" + levels);
     }
@@ -124,5 +125,22 @@ final class WorldScenarios {
             }
         }
         return c;
+    }
+
+    static int strayBlocks(ServerLevel level, java.util.List<net.minecraft.world.level.levelgen.structure.BoundingBox> boxes, int radius) {
+        int stray = 0;
+        var pos = new net.minecraft.core.BlockPos.MutableBlockPos();
+        for (int cx = -radius; cx <= radius; cx++) for (int cz = -radius; cz <= radius; cz++) {
+            level.getChunk(cx, cz);
+            for (int x = cx * 16; x < cx * 16 + 16; x++) for (int z = cz * 16; z < cz * 16 + 16; z++) {
+                for (int y = level.getMinY(); y < level.getMaxY(); y++) {
+                    pos.set(x, y, z);
+                    if (boxes.stream().anyMatch(b -> b.isInside(pos))) continue;
+                    var key = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock());
+                    if (key.getNamespace().equals(RhWorldMod.ID)) stray++;
+                }
+            }
+        }
+        return stray;
     }
 }
