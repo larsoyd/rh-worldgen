@@ -49,7 +49,10 @@ public final class CommandTest {
         var out = all(run(helper, "rhworld contracts"));
         Session.set(null);
         helper.assertTrue(out.contains("id=SHRINE label=unconditional grh=no"), "shrine line missing: " + out);
-        helper.assertTrue(out.contains("id=WG-1") && out.contains("id=WG-2") && out.contains("id=G2"), "gate contracts missing: " + out);
+        helper.assertTrue(out.contains("contract=RHW-C1 v1") && out.contains("contract=RHW-C3 v1"), "engine contracts missing: " + out);
+        helper.assertTrue(out.contains("label=LEAN ref=LFunction_ne_zero_of_half_lt_re"), "lean chain missing: " + out);
+        helper.assertTrue(out.contains("checked_by=recomputed.c1.trial_limit"), "hypotheses missing: " + out);
+        helper.assertFalse(out.contains("id=WG-1") || out.contains("id=G2 "), "adapter invented contract ids: " + out);
         helper.assertFalse(out.lines().anyMatch(l -> l.contains("id=SHRINE") && l.contains("grh=yes")), "shrine claims grh: " + out);
         helper.succeed();
     }
@@ -60,8 +63,8 @@ public final class CommandTest {
         Session.set(s);
         var out = all(run(helper, "rhworld verify"));
         Session.set(null);
-        helper.assertTrue(out.contains("recomputed: bits=1024 budget=503791 gate_primes=41816 witness=349"), "recomputed: " + out);
-        helper.assertTrue(out.contains("recomputed: admission=ok"), "admission: " + out);
+        helper.assertTrue(out.contains("recomputed: c1 bits=1024 min_bits=1024 square=false probable_prime=false trial_limit=504100"), "c1: " + out);
+        helper.assertTrue(out.contains("budget=503791 g2_witness=349"), "budget and witness: " + out);
         helper.assertTrue(out.contains("recomputed: certificate world_id=" + s.worldId() + " verify=ok"), "certificate: " + out);
         helper.assertTrue(out.contains("by-theorem: G1 unchecked until reveal"), "g1: " + out);
         helper.assertFalse(out.contains("G1 verified"), "g1 claimed: " + out);
@@ -94,6 +97,8 @@ public final class CommandTest {
         var out = all(run(helper, "rhworld reveal " + p));
         Session.set(null);
         helper.assertTrue(out.contains("reveal accepted rank=2"), "reveal gave " + out);
+        helper.assertTrue(out.contains("world_id=" + s.worldId()), "reveal world id: " + out);
+        helper.assertFalse(out.contains(SeasonAdapterTest.riggedKey().q().toString()), "reveal printed the cofactor");
         helper.succeed();
     }
 

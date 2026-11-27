@@ -108,7 +108,8 @@ public final class RhCommands {
     static List<String> contracts(CommandSourceStack src, Session s) {
         var lines = new ArrayList<String>();
         lines.add("world_id=" + s.worldId() + " certificate=rhworld.cert/1");
-        Contracts.ALL.forEach(c -> lines.add(c.line()));
+        lines.addAll(Contracts.engine());
+        Contracts.UNCONDITIONAL.forEach(c -> lines.add(c.line()));
         if (src.getEntity() instanceof ServerPlayer p && s.season().isPresent()
                 && PlayerData.state(p, s.season().get()).log().custody() == Custody.SERVER) {
             lines.add("player=" + p.getScoreboardName() + " dice=server-held condition8=not_met, the server knows your future dice");
@@ -116,15 +117,23 @@ public final class RhCommands {
         return lines;
     }
 
+    @SuppressWarnings("unchecked")
     static List<String> verify(Session s) {
-        var w = s.world();
-        var a = w.admission();
-        String cert = Certificate.verify(s.certificate(), Session.TELEMETRY) instanceof rhworld.engine.contract.Verdict.Ok<?> ? "ok" : "refused";
+        var root = (java.util.Map<String, Object>) rhworld.engine.json.Json.parse(s.certificate());
+        var rec = (java.util.Map<String, Object>) root.get("recomputed");
+        var c1 = (java.util.Map<String, Object>) rec.get("c1");
+        var c3 = (java.util.Map<String, Object>) rec.get("c3");
+        var g2 = (java.util.Map<String, Object>) c1.get("g2");
+        var checked = Certificate.verify(s.certificate(), Session.TELEMETRY);
+        String verdict = checked instanceof rhworld.engine.contract.Verdict.Ok<?> ? "ok" : checked.toString();
         return List.of(
-                "recomputed: bits=" + w.bits() + " budget=" + w.budget() + " gate_primes=" + w.primes().size() + " witness=" + w.g2().value(),
-                "recomputed: admission=ok trial_limit=" + a.trialLimit() + " primes_tested=" + a.primesTested(),
-                "recomputed: certificate world_id=" + s.worldId() + " verify=" + cert,
-                "by-theorem: G2 bound w <= B holds for every n passing the checks, here observed w=" + w.g2().value(),
+                "recomputed: c1 bits=" + c1.get("bits") + " min_bits=" + c1.get("min_bits") + " square=" + c1.get("square")
+                        + " probable_prime=" + c1.get("probable_prime") + " trial_limit=" + c1.get("trial_limit")
+                        + " primes_tested=" + c1.get("primes_tested") + " budget=" + c1.get("budget") + " g2_witness=" + g2.get("witness"),
+                "recomputed: c3 bound=" + c3.get("bound") + " independent=" + c3.get("independent") + " primality_test=" + rec.get("primality_test"),
+                "recomputed: certificate world_id=" + s.worldId() + " verify=" + verdict,
+                "by-theorem: " + rhworld.engine.contract.C1.ID + " and " + rhworld.engine.contract.C3.ID
+                        + " hold for this admitted n if GRH holds, see /rhworld contracts",
                 "by-theorem: G1 unchecked until reveal");
     }
 
@@ -173,30 +182,29 @@ public final class RhCommands {
     }
 
     static List<String> reveal(CommandSourceStack src, Session s, String arg) {
-        BigInteger p = strictFactor(arg, s.world().n());
-        if (p == null) return List.of("refused: p is not a nontrivial factor of n");
+        BigInteger p = strictDecimal(arg, s.world().n());
+        if (p == null) return List.of("refused: p is not a decimal integer below n");
         var gm = GmWorld.reveal(s.world(), p, Optional.empty(), Session.TELEMETRY);
         if (!(gm instanceof rhworld.engine.contract.Verdict.Ok<GmWorld> ok)) return List.of(gm.toString());
+        var season = s.season().orElseGet(() -> new Season(ok.value()));
         var lines = new ArrayList<String>();
         for (ServerPlayer player : src.getServer().getPlayerList().getPlayers()) {
-            if (s.season().isEmpty()) break;
-            var log = PlayerData.state(player, s.season().get()).log();
+            var log = PlayerData.state(player, season).log();
+            var publicReplay = Replay.check(log);
+            String hidden = publicReplay.isPresent() ? "skipped" : season.replay(log).stream()
+                    .mapToObj(i -> "first_false_report=" + i).findFirst().orElse("all_reports_true");
             lines.add("player=" + player.getScoreboardName() + " rides=" + log.rides().size() + " dice=" + log.custody().label()
-                    + " public_replay=" + Replay.check(log).orElse("ok") + " replay_against_key=pending");
+                    + " public_replay=" + publicReplay.orElse("ok") + " " + hidden);
         }
-        lines.add("reveal accepted rank=" + ok.value().hiddenBasis().rank() + " factors=" + ok.value().factorsStatus());
+        lines.add("reveal accepted rank=" + ok.value().hiddenBasis().rank() + " factors=" + ok.value().factorsStatus()
+                + " world_id=" + Certificate.of(ok.value()).worldId());
         return lines;
     }
 
-    static BigInteger strictFactor(String arg, BigInteger n) {
-        int digits = n.toString().length();
-        if (arg.isEmpty() || arg.length() > digits || arg.charAt(0) == '0' || !arg.chars().allMatch(c -> c >= '0' && c <= '9')) return null;
+    static BigInteger strictDecimal(String arg, BigInteger n) {
+        if (arg.isEmpty() || arg.length() > n.toString().length() || arg.charAt(0) == '0'
+                || !arg.chars().allMatch(c -> c >= '0' && c <= '9')) return null;
         BigInteger p = new BigInteger(arg);
-        if (p.compareTo(BigInteger.ONE) <= 0 || p.compareTo(n) >= 0 || n.mod(p).signum() != 0) return null;
-        return p;
-    }
-
-    private static String yes(boolean b) {
-        return b ? "yes" : "no";
+        return p.compareTo(n) < 0 ? p : null;
     }
 }
