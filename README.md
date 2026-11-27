@@ -130,6 +130,103 @@ are multiplicative, so a tile's class follows from the classes of its prime fact
 map. The least witness is always a prime. The red bar under the strip marks the G1 witness and the yellow bar marks
 the G2 witness. In the rigged sample the ledger is solid plains up to 331, then shows the bars at 349.
 
+## Contracts
+
+Every certificate names the contract it relies on and its version. A version changes whenever a formula, a constant or a
+precondition changes. Both contracts below rest on one machine-checked theorem and one published theorem. The last step
+is our own short argument, given here in full.
+
+Labels: **Lean** means machine-checked in the riemann-hypothesis repository at main
+7c4ccbd64d02774b0a5b40a5f923f5b7a18e8abc. **Published** means stated and proved in a paper we read. **Ours** means the
+derivation written below, which nobody has machine-checked.
+
+### The shared theorem chain
+1. Lean: `LFunction_ne_zero_of_half_lt_re` (src/Main.lean, statement `DirichletLNonvanishingRightOfHalf` in
+   src/Statements.lean). For every modulus N, every Dirichlet character chi mod N (primitive or not) and every s with
+   Re s > 1/2, L(s, chi) is not zero, except for the trivial character at s = 1. This is the generalized Riemann
+   hypothesis for Dirichlet L-functions.
+2. Published: Lamzouri, Li, Soundararajan, "Conditional bounds for the least quadratic non-residue and related problems",
+   Math. Comp. 84 (2015), arXiv 1309.3595v3, Theorem 1.1 part (2). Assume that hypothesis. Let q >= 3000 and let H be a proper
+   subgroup of the units mod q. If no prime below (ln q)^2 divides q, then some prime l <= (ln q)^2 lies outside H. The
+   paper's later correction concerns a different lemma, used only for its asymptotic Theorems 1.2 and 1.3.
+3. Budget. For a number of bit length k, B(k) = floor((k ln 2)^2), computed exactly in integer arithmetic. It depends only
+   on k, so it is fixed before the number is seen. B(1024) = 503791, B(2048) = 2015165. Since ln q < k ln 2, every prime
+   below (ln q)^2 is at most B, and the prime l from step 2 is an integer at most B.
+
+### RHW-C1 v1: least canonical witness and hidden layer
+Input: an odd modulus n of k >= 1024 bits published by the game master, who keeps its factors.
+Refusals, checked in this order:
+1. `refused: modulus too small or even`: n is even or shorter than 1024 bits.
+2. `refused: jacobi character is principal`: n is a perfect square.
+3. `refused: no hidden layer`: n is a probable prime.
+4. `refused: small factor`: some d from 3 to max(B, s^2) divides n, where s = isqrt(B - 1) + 1 is the side of the spawn
+   patch.
+
+Statement, for every n that passes:
+- Public: the least x <= B with Jacobi symbol (x/n) = -1 exists. Any client finds it in at most B steps. A scan that
+  goes past B stops with `refused: budget exceeded`. That outcome would contradict the theorem chain.
+- Hidden: for every prime factor p of n, the least x <= B with Legendre symbol (x/p) = -1 exists. So the hidden layer is
+  not constant on the spawn patch.
+
+Derivation (ours): take q = n in step 2. Then q >= 3000, and refusal 4 has ruled out every prime factor up to B. H is the
+kernel of (x/n), which is proper because n is not a square, or the kernel of (x/p) read mod n, which is proper by the
+Chinese remainder theorem. The prime from step 2 is at most B and does not divide n.
+
+### RHW-C3 v1: prime basis, routes to states and the gate
+Input: layers n_1, ..., n_r. These are public moduli, or after a reveal the game master's factors p and q. The state of a
+tile x is r bits, and bit i is 1 when (x/n_i) = -1. States multiply: the state of x y is the XOR of the states of x and y.
+M is the least common multiple of the layers, k is its bit length and B = B(k). The alphabet S is all primes up to B.
+Refusals, checked in this order:
+1. `refused: no layers`: r = 0.
+2. `refused: too many layers`: r > 8.
+3. `refused: modulus too small or even`: some layer is below 3 or even.
+4. `refused: dependent layers`: the product of some nonempty set of layers is a perfect square.
+5. `refused: lcm below 3000`: M < 3000.
+6. `refused: small factor`: some prime up to B divides some layer.
+7. `refused: budget exceeded`: raised at run time if the scan below passes B before it finds r primes. This would
+   contradict the theorem chain.
+
+Scan: test primes 2, 3, 5, ... in increasing order. Keep a prime when its state is not an XOR of the states already kept.
+Stop once r primes are kept.
+
+Statement, for every input that passes refusals 1 to 6:
+- Basis: the scan keeps r primes, all at most B.
+- Routes: from every tile x coprime to M to every target state there is a route of at most r multiplications by kept
+  primes. It is found by solving r linear equations over the two-element field. No discrete logarithm is needed.
+- Gate: multiply x by the product of a random subset of S, each prime taken with probability 1/2 independently. The
+  resulting state is exactly uniform over all 2^r states, from any start.
+
+Derivation (ours):
+- The layers reach every state. A product of layers gives a character mod M that is trivial exactly when the product is a
+  square. If a prime divides the product an odd number of times, the Chinese remainder theorem gives a unit where the
+  character is -1. Refusal 4 makes every such character nontrivial. Hence the state map from the units mod M onto the r
+  bits is onto.
+- The primes span. If the kept states span only a proper subspace V, the units whose state lies in V form a proper
+  subgroup. Step 2 with q = M (refusals 5 and 6 give its hypotheses) yields a prime at most B outside that subgroup. The
+  least such prime is the next one the scan keeps, because every smaller prime lies in V. After r rounds the kept states
+  are a basis.
+- The gate is uniform. The map from subsets of S to states is linear over the two-element field and onto, by the
+  previous point. So every state has exactly 2^(|S| - r) subsets mapping to it.
+
+### What is not proved
+- Nothing here is machine-checked beyond the Lean theorem. The step to explicit bounds is the published Theorem 1.1, and
+  the wiring is ours.
+- The guarantees are worst-case bounds. Real witnesses and basis primes are tiny: below 50 for random keys, and 349 and
+  359 for the rigged sample key, against a budget of 503791.
+- Claims about p and q = n/p hold only after a reveal shows that p and n/p are distinct primes. The certificate states
+  which test was used: a Pocklington certificate gives "proved", and a probabilistic test gives "probable". Without such
+  a reveal, a key like p^3 or p r^2 passes every client check, and its visible layer equals the hidden one.
+- No statement is made about windows away from the origin, about distances on the map, about routes to a given tile, or
+  about how fast any walk other than the gate mixes.
+- Hiding the hidden layer rests on the hardness of factoring, not on the Riemann hypothesis.
+
+### The codex limit
+Each gate ride lets players learn one linear equation in the hidden bits (l/p) of the primes l up to B. After about |S|
+independent rides (41816 at 1024 bits) they know all of them. Then the hidden bit of every tile whose prime factors are
+all at most B is public, and that includes every tile of the spawn patch. Recovering p itself from these bits is an open
+problem. We know no algorithm for it, but we do not claim it is impossible. A season should end well before |S| rides
+have been made against one key.
+
 ## Usage
 
 Requires Python 3.14 with numpy, Pillow and mpmath (mpmath is used only by the tests).
