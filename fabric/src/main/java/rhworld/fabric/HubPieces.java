@@ -66,6 +66,10 @@ public final class HubPieces {
             super(RhWorldMod.HUB_PIECE, tag);
         }
 
+        public BlockPos origin() {
+            return new BlockPos(ox, oy, oz);
+        }
+
         @Override
         public void postProcess(WorldGenLevel level, StructureManager structures, ChunkGenerator generator,
                 RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos origin) {
