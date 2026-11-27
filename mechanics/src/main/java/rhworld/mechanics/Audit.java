@@ -59,7 +59,7 @@ public final class Audit {
         return new Verdict(rides, arrivals, mismatches, weakest, p, mismatches > 0 || p <= threshold, log.custody());
     }
 
-    public static OptionalLong replay(Warden warden, RideLog log) {
+    static OptionalLong replay(Warden warden, RideLog log) {
         if (!warden.modulus().equals(log.modulus())) throw new IllegalArgumentException("refused: log modulus differs from the revealed key");
         for (Ride ride : log.rides()) {
             if (warden.realm(ride.after()) != ride.reported()) return OptionalLong.of(ride.index());

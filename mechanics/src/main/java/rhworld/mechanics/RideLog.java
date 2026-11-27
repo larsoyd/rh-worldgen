@@ -16,6 +16,7 @@ public final class RideLog {
     private final String commitment;
     private final Custody custody;
     private final List<Ride> rides = new ArrayList<>();
+    private long copies;
 
     public RideLog(BigInteger n, String commitment, Custody custody) {
         this.n = n;
@@ -47,7 +48,21 @@ public final class RideLog {
     }
 
     public List<Ride> rides() {
+        copies += rides.size();
         return List.copyOf(rides);
+    }
+
+    public int size() {
+        return rides.size();
+    }
+
+    BigInteger end() {
+        return rides.isEmpty() ? BigInteger.ONE : rides.getLast().after();
+    }
+
+    // rides copied out so far, so tests can bound the work done per ride
+    long copies() {
+        return copies;
     }
 
     public String toJson() {
