@@ -19,6 +19,7 @@ dependencies {
 
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
+    options.release = providers.gradleProperty("rhworld.engine.release").get().toInt()
     options.compilerArgs.addAll(listOf("-Xlint:all", "-Werror"))
 }
 
