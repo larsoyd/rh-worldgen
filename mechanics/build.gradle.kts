@@ -4,7 +4,7 @@ plugins {
 }
 
 application {
-    mainClass = "rhworld.mechanics.ReplayMain"
+    mainClass = "rhworld.mechanics.Launcher"
 }
 
 java {

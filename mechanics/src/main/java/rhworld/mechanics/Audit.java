@@ -3,7 +3,9 @@ package rhworld.mechanics;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalLong;
@@ -12,14 +14,19 @@ import rhworld.engine.arith.Arith;
 public final class Audit {
     public record Verdict(Map<Colour, Integer> rides, Map<Realm, Integer> arrivals, int publicMismatches, Realm weakest,
             double pValue, boolean accused, Custody custody) {
+        public Object[] fields() {
+            List<Object> f = new ArrayList<>(List.of("rides_warm", rides.get(Colour.WARM), "rides_cold", rides.get(Colour.COLD)));
+            for (Realm r : Realm.values()) f.addAll(List.of(lower(r), arrivals.get(r)));
+            f.addAll(List.of("mismatches", publicMismatches, "weakest", lower(weakest), "p", String.valueOf(pValue), "verdict", accused ? "accused" : "clear",
+                    "dice", custody.label()));
+            if (custody == Custody.SERVER) f.addAll(List.of("condition8", "not_met"));
+            return f.toArray();
+        }
+
         public String line() {
             StringBuilder s = new StringBuilder("[audit]");
-            s.append(" rides_warm=").append(rides.get(Colour.WARM)).append(" rides_cold=").append(rides.get(Colour.COLD));
-            for (Realm r : Realm.values()) s.append(' ').append(lower(r)).append('=').append(arrivals.get(r));
-            s.append(" mismatches=").append(publicMismatches).append(" weakest=").append(lower(weakest));
-            s.append(" p=").append(pValue).append(" verdict=").append(accused ? "accused" : "clear");
-            s.append(" dice=").append(custody.label());
-            if (custody == Custody.SERVER) s.append(" condition8=not_met");
+            Object[] f = fields();
+            for (int i = 0; i < f.length; i += 2) s.append(' ').append(f[i]).append('=').append(f[i + 1]);
             return s.toString();
         }
     }
