@@ -11,6 +11,8 @@ from verify.certverify import verify, world_id
 from verify.reveal import Refused, build_certificate
 
 DATA = Path(__file__).parent / "data"
+SAMPLES = ("good-n-public.json", "good-n-revealed.json", "both-rigged-1024-0-revealed.json", "random-1024-public.json",
+           "rigged-1024-revealed.json")
 
 
 def load(name):
@@ -34,7 +36,7 @@ def set_path(cert, path, value):
 
 class Samples(unittest.TestCase):
     def test_engine_samples_verify(self):
-        for name in ("random-1024-public.json", "rigged-1024-revealed.json"):
+        for name in SAMPLES:
             raw = (DATA / name).read_bytes()
             self.assertEqual(verify(raw), world_id(certcheck.parse(raw.rstrip(b"\n"))), name)
 
@@ -72,6 +74,14 @@ class Mutations(unittest.TestCase):
         (("theorem", "RHW-C1", "claim_scope"), "everywhere"),
         (("theorem", "RHW-C1", "hypotheses", 1, "checked_by"), "recomputed.c1.nothing"),
         (("theorem", "RHW-C3", "chain", 1, "ref"), "Bach 1990"),
+        (("theorem", "RHW-C3", "chain", 2, "ref"), "derivation in NOTES.md"),
+        (("theorem", "RHW-C1", "chain", 2, "statement"), "see docs/proof.md"),
+        (("theorem", "RHW-C3", "hypotheses", 1, "checked_by"), "recomputed.c3.bound"),
+        (("recomputed", "c3", "trial_limit"), 1000),
+        (("recomputed", "c3", "primes_tested"), 41815),
+        (("deferred", "reveal", "c3_hidden", "trial_limit"), 1000),
+        (("deferred", "reveal", "c3_hidden", "primes_tested"), 1),
+        (("world_id",), "0" * 64),
     ]
 
     def test_each_mutated_field_is_named(self):
@@ -80,6 +90,8 @@ class Mutations(unittest.TestCase):
             cert = copy.deepcopy(base)
             set_path(cert, path, value)
             field = ".".join(str(k) for k in path[:3] if not isinstance(k, int))
+            if path[0] == "theorem":
+                field = ".".join(path[:2])
             with self.subTest(path=path):
                 with self.assertRaises(Refused) as cm:
                     verify(certcheck.dump(cert))
@@ -93,6 +105,11 @@ class Mutations(unittest.TestCase):
         with self.assertRaises(Refused) as cm:
             verify(certcheck.dump(cert))
         self.assertEqual(str(cm.exception), "refused: bad field deferred.reveal.p")
+
+    def test_engine_version_is_informational(self):
+        cert = load("rigged-1024-revealed.json")
+        cert["engine_version"] = "9.9.9"
+        self.assertTrue(verify(certcheck.dump(cert)))
 
     def test_dropped_disclaimer(self):
         cert = load("random-1024-public.json")
