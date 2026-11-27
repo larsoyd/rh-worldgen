@@ -25,7 +25,7 @@ def build_log(colours, top=b"\x11" * 32):
         out.append({"after": str(after), "before": str(x), "colour": colour, "index": i, "opening": links[i + 1].hex(),
                     "reported": rides.realm(after, P521, P607)})
         x = after
-    return {"commitment": links[0].hex(), "format": "rhworld.rides/1", "n": str(N), "rides": out}
+    return {"commitment": links[0].hex(), "dice": "player", "format": "rhworld.rides/1", "n": str(N), "rides": out}
 
 
 class Dice(unittest.TestCase):
@@ -55,8 +55,18 @@ class Replay(unittest.TestCase):
 
     def test_valid_log_with_and_without_reveal(self):
         log = build_log(["warm", "cold", "warm"])
-        self.assertEqual(rides.replay(certcheck.dump(log)), 3)
-        self.assertEqual(rides.replay(certcheck.dump(log), P521), 3)
+        self.assertEqual(rides.replay(certcheck.dump(log)), {"rides": 3, "dice": "player", "condition8": "met"})
+        self.assertEqual(rides.replay(certcheck.dump(log), P521)["rides"], 3)
+
+    def test_custody(self):
+        log = build_log(["warm"])
+        log["dice"] = "server-held"
+        self.assertEqual(rides.replay(certcheck.dump(log))["condition8"], "not_met")
+        for bad in ("server", "", None):
+            log["dice"] = bad
+            self.refused(log, "dice")
+        del log["dice"]
+        self.refused(log, "dice")
 
     def test_each_tamper_is_named(self):
         base = build_log(["warm", "cold", "warm"])
@@ -79,7 +89,7 @@ class Replay(unittest.TestCase):
         log = build_log(["warm"])
         r = log["rides"][0]
         r["reported"] = "ember" if r["reported"] == "hearth" else "hearth"
-        self.assertEqual(rides.replay(certcheck.dump(log)), 1)
+        self.assertEqual(rides.replay(certcheck.dump(log))["rides"], 1)
         self.refused(log, "ride 0 reported", P521)
 
     def test_noncanonical_log(self):
