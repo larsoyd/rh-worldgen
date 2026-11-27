@@ -165,6 +165,32 @@ def foreign_starts(starts, radius):
                   and abs(cx) <= radius and abs(cz) <= radius)
 
 
+def column_ok(ys, top, depth=24):
+    return bool(ys) and max(ys) == top and len(ys) == top - min(ys) + 1 and len(ys) <= depth
+
+
+def foundation_errors(blocks):
+    stone = {}
+    for x, y, z, st in blocks:
+        if st == "rhworld:hub_stone":
+            stone.setdefault((x, z), set()).add(y)
+    errors = []
+    oy = pad_top(blocks)
+    for x in range(-9, 10):
+        for z in range(-9, 10):
+            ys = {y for y in stone.get((x, z), ()) if oy is not None and y < oy}
+            if not column_ok(ys, oy - 1 if oy else None):
+                errors.append(f"hub column ({x}, {z}) not contiguous to {oy - 1 if oy else None}")
+    for sx, sy, sz, st in blocks:
+        if st.startswith("rhworld:shrine"):
+            for dx in (-1, 0, 1):
+                for dz in (-1, 0, 1):
+                    ys = {y for y in stone.get((sx + dx, sz + dz), ()) if y < sy}
+                    if not column_ok(ys, sy - 1):
+                        errors.append(f"shrine {shrine_index(st)} column ({sx + dx}, {sz + dz}) not contiguous to {sy - 1}")
+    return errors
+
+
 def layout_errors(blocks):
     errors = []
     oy = pad_top(blocks)
@@ -218,7 +244,7 @@ def world_hashes(world):
                 else:
                     empty += 1
         placement[level] = (len(outside(every, [p["BB"] for p in pieces])), shrine_mismatches(every, pieces),
-                            layout_errors(every), foreign_starts(starts, HUB_CLEARANCE))
+                            layout_errors(every) + foundation_errors(every), foreign_starts(starts, HUB_CLEARANCE))
     return out, empty, placement
 
 

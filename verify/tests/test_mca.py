@@ -151,6 +151,19 @@ class Decode(unittest.TestCase):
         self.assertEqual(mca.pad_top(blocks), oy)
         self.assertEqual(mca.pad_top(blocks[1:5]), oy - 19)
 
+    def test_foundation_columns(self):
+        oy = 70
+        pad = [(x, y, z, "rhworld:hub_stone") for x in range(-9, 10) for z in range(-9, 10) for y in range(oy - 5, oy)]
+        shrine = [(48 + dx, y, dz, "rhworld:hub_stone") for dx in (-1, 0, 1) for dz in (-1, 0, 1) for y in range(60, 65)]
+        blocks = pad + shrine + [(48, 65, 0, "rhworld:shrine[prime_index=0]")]
+        self.assertEqual(mca.foundation_errors(blocks), [])
+        holed = [b for b in blocks if b[:3] != (3, oy - 3, 4)]
+        self.assertEqual(mca.foundation_errors(holed), ["hub column (3, 4) not contiguous to 69"])
+        short = [b for b in blocks if b[:3] != (49, 64, 1)]
+        self.assertEqual(mca.foundation_errors(short), ["shrine 0 column (49, 1) not contiguous to 64"])
+        deep = blocks + [(0, oy - 30, 0, "rhworld:hub_stone")]
+        self.assertEqual(mca.foundation_errors(deep), ["hub column (0, 0) not contiguous to 69"])
+
     def test_foreign_structures_near_hub(self):
         starts = {(0, 0): {"rhworld:hub": {}}, (1, 0): {"minecraft:ruined_portal": {}}, (17, 0): {"minecraft:village": {}},
                   (-16, 3): {"minecraft:mineshaft": {"id": "INVALID"}}}
