@@ -3,6 +3,7 @@ package rhworld.engine.world;
 import java.math.BigInteger;
 import java.util.List;
 import rhworld.engine.arith.Arith;
+import rhworld.engine.arith.PrimeTable;
 import rhworld.engine.contract.C1;
 import rhworld.engine.contract.C3;
 import rhworld.engine.contract.Verdict;
@@ -13,8 +14,10 @@ public final class PublicWorld {
     private final C1.Admission admission;
     private final Witness g2;
     private final C3.Basis basis;
+    private final PrimeTable primes;
 
     private PublicWorld(C1.Admission admission, Witness g2, C3.Basis basis) {
+        this.primes = PrimeTable.upTo(admission.budget());
         this.admission = admission;
         this.g2 = g2;
         this.basis = basis;
@@ -39,6 +42,10 @@ public final class PublicWorld {
 
     public C1.Admission admission() {
         return admission;
+    }
+
+    public PrimeTable primes() {
+        return primes;
     }
 
     public Witness g2() {

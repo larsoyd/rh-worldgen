@@ -45,6 +45,8 @@ class WorldTest {
             assertEquals(((BigInteger) c.get("budget")).longValue(), w.budget());
             assertEquals(w.g2().value(), w.basis().primes()[0]);
             assertEquals(-1, w.jacobi(BigInteger.valueOf(w.g2().value())));
+            assertEquals(w.budget(), w.primes().limit());
+            assertEquals(rhworld.engine.arith.Primes.upTo(w.budget()).length, w.primes().size());
         }
         for (Map<String, Object> c : Golden.<Map<String, Object>>list("modulus")) {
             if (c.containsKey("refused")) assertEquals(c.get("refused"), PublicWorld.open(big(c.get("n")), Telemetry.NONE).toString());

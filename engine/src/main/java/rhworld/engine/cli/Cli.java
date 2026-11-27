@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import rhworld.engine.arith.Arith;
-import rhworld.engine.arith.Primes;
+import rhworld.engine.arith.PrimeTable;
 import rhworld.engine.cert.Certificate;
 import rhworld.engine.contract.Verdict;
 import rhworld.engine.json.Json;
@@ -183,9 +183,9 @@ public final class Cli {
             Certificate.verify(json, Telemetry.NONE);
             verify = Math.min(verify, System.nanoTime() - s);
         }
-        int[] primes = Primes.upTo(world.budget());
-        long[] bits = new long[(primes.length + 63) / 64];
-        for (int i = 0; i < primes.length; i++) if (Long.bitCount(i * 0x9E3779B97F4A7C15L) % 2 == 1) bits[i >>> 6] |= 1L << (i & 63);
+        PrimeTable primes = world.primes();
+        long[] bits = new long[(primes.size() + 63) / 64];
+        for (int i = 0; i < primes.size(); i++) if (Long.bitCount(i * 0x9E3779B97F4A7C15L) % 2 == 1) bits[i >>> 6] |= 1L << (i & 63);
         product = Long.MAX_VALUE;
         for (int i = 0; i < repeat; i++) {
             long s = System.nanoTime();
@@ -204,7 +204,7 @@ public final class Cli {
         row.put("verdict", "accepted");
         row.put("g2", world.g2().value());
         row.put("budget", world.budget());
-        row.put("primes", primes.length);
+        row.put("primes", primes.size());
         row.put("cert_bytes", json.length());
         row.put("open_us", open / 1000);
         row.put("certify_us", certify / 1000);
