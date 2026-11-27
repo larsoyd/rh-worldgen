@@ -37,3 +37,15 @@ tasks.processResources {
     inputs.property("version", project.version)
     filesMatching("fabric.mod.json") { expand("version" to project.version) }
 }
+
+loom {
+    runs {
+        create("worldTest") {
+            server()
+            source(sourceSets.getByName("gametest"))
+            runDir("build/worldtest")
+            vmArg("-Drhworld.worldtest=" + (findProperty("rhworld.worldtest") ?: "none"))
+            ideConfigGenerated(false)
+        }
+    }
+}
